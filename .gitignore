@@ -1,0 +1,40 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled binary
+vswitch
+virtualswitch
+
+# Core dumps
+core
+*.core
+
+# Testing outputs
+Testing/

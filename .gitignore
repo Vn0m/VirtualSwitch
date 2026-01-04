@@ -32,8 +32,8 @@ Makefile
 vswitch
 virtualswitch
 
-# Core dumps
-core
+# Core dumps (only in root directory)
+/core
 *.core
 
 # Testing outputs

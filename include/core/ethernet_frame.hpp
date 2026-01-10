@@ -12,6 +12,7 @@ public:
     // parse raw Ethernet frame bytes
     explicit EthernetFrame(const std::vector<uint8_t>& raw_frame);
     
+    const std::vector<uint8_t>& get_raw_frame() const;
     const std::array<uint8_t, 6>& get_dst_mac() const;
     const std::array<uint8_t, 6>& get_src_mac() const;
     uint16_t get_ethertype() const;
@@ -24,6 +25,7 @@ public:
     std::string to_string() const;
 
 private:
+    std::vector<uint8_t> raw_frame_; // raw frame bytes
     std::array<uint8_t, 6> dst_mac_; // destination MAC 6 bytes
     std::array<uint8_t, 6> src_mac_; // source MAC 6 bytes
     uint16_t ethertype_; // EtherType 2 bytes 

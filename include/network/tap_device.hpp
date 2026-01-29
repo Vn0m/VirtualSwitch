@@ -16,7 +16,7 @@ public:
 
     TapDevice(const TapDevice&) = delete;
     TapDevice& operator = (const TapDevice&) = delete;
-    
+
     // get an ethernet frame from the kernel and we return raw 
     // frame bytes 
     std::vector<uint8_t> read_frame();
@@ -25,6 +25,11 @@ public:
     void write_frame(const std::vector<uint8_t>& frame);
 
     const std::string& get_name() const { return name_; }
+
+    int get_fd() const { return fd_; }
+    // low-level read/write
+    ssize_t read(uint8_t* buffer, size_t size);
+    ssize_t write(const uint8_t* buffer, size_t size);
 
 private:
     int fd_; // file descriptor for tap device

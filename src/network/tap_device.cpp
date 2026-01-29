@@ -51,7 +51,7 @@ namespace vswitch {
     std::vector<uint8_t> TapDevice::read_frame(){
         std::vector<uint8_t> buffer(1518);
 
-        ssize_t bytes_read = read(fd_, buffer.data(), buffer.size());
+        ssize_t bytes_read = read(buffer.data(), buffer.size());
 
         if(bytes_read < 0){
             throw std::runtime_error("Failed to read from TAP: " + 
@@ -64,7 +64,7 @@ namespace vswitch {
     }
 
     void TapDevice::write_frame(const std::vector<uint8_t>& frame){
-        ssize_t bytes_written = write(fd_, frame.data(), frame.size());
+        ssize_t bytes_written = write(frame.data(), frame.size());
 
         if (bytes_written < 0){
             throw std::runtime_error("Failed to write to TAP: " + 
@@ -74,6 +74,16 @@ namespace vswitch {
         if(static_cast<size_t>(bytes_written) != frame.size()){
             throw std::runtime_error("Partial write to TAP device");
         }
+    }
+
+    ssize_t TapDevice::read(uint8_t* buffer, size_t size) {
+        ssize_t bytes_read = ::read(fd_, buffer, size);
+        return bytes_read;
+    }
+
+    ssize_t TapDevice::write(const uint8_t* buffer, size_t size) {
+        ssize_t bytes_written = ::write(fd_, buffer, size);
+        return bytes_written;
     }
     
 } // namespace vswitch

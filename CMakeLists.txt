@@ -11,6 +11,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 add_library(vswitch_core
     src/core/ethernet_frame.cpp
     src/network/tap_device.cpp
+    src/switch/virtual_switch.cpp
 )
 
 target_include_directories(vswitch_core PUBLIC

@@ -1,7 +1,6 @@
 #include "switch/virtual_switch.hpp"
 #include <iostream>
 #include <sstream>
-#include <vector>
 #include <poll.h>
 
 namespace vswitch {
@@ -12,8 +11,8 @@ namespace vswitch {
     VirtualSwitch::~VirtualSwitch() {
     }
 
-    void VirtualSwitch::add_port(TapDevice* tap_device) {
-        ports_.push_back(tap_device);
+    void VirtualSwitch::add_port(std::unique_ptr<TapDevice> tap_device) {
+        ports_.push_back(std::move(tap_device));
     }
 
     void VirtualSwitch::learn_mac_address(const std::array<uint8_t, 6>& mac, TapDevice* port) {
@@ -30,8 +29,9 @@ namespace vswitch {
                 dest_port->write(frame.get_raw_frame().data(), frame.get_raw_frame().size());
             }
         } else {
-            for (TapDevice* port : ports_) {
-                if (port != source_port) {
+            // Destination MAC unknown: flood to all ports except source
+            for (const auto& port : ports_) {
+                if (port.get() != source_port) {
                     port->write(frame.get_raw_frame().data(), frame.get_raw_frame().size());
                 }
             }
@@ -42,7 +42,7 @@ namespace vswitch {
         std::ostringstream oss;
         oss << "MAC Address Table:\n";
         for (const auto& entry : mac_address_table_) {
-            oss << entry.first << " -> " << entry.second << "\n";
+            oss << entry.first << " -> " << entry.second->get_name() << "\n";
         }
         return oss.str();
     }
@@ -52,7 +52,7 @@ namespace vswitch {
         std::vector<uint8_t> buffer(MAX_FRAME_SIZE);
 
         std::vector<pollfd> poll_fds;
-        for (TapDevice* port : ports_) {
+        for (const auto& port : ports_) {
             pollfd pfd;
             pfd.fd = port->get_fd(); 
             pfd.events = POLLIN;
@@ -80,8 +80,9 @@ namespace vswitch {
                                   << EthernetFrame::mac_to_string(frame.get_dst_mac())
                                   << " (" << len << " bytes)" << std::endl;
                         
-                        learn_mac_address(frame.get_src_mac(), ports_[i]);
-                        forward_frame(frame, ports_[i]);
+                        learn_mac_address(frame.get_src_mac(), ports_[i].get());                        
+                        std::cout << "\n" << mac_table_to_string() << std::endl;                        
+                        forward_frame(frame, ports_[i].get());
                         buffer.resize(MAX_FRAME_SIZE);
                     }
                 }

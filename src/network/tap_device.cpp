@@ -1,6 +1,5 @@
 #include "network/tap_device.hpp"
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
@@ -9,8 +8,6 @@
 #include <stdexcept>
 #include <cerrno>
 #include <cstring>
-#include <string>
-
 
 namespace vswitch {
     TapDevice::TapDevice(const std::string& device_name){
@@ -26,6 +23,8 @@ namespace vswitch {
         struct ifreq ifr;
         memset(&ifr, 0, sizeof(ifr));
 
+        // IFF_TAP: create TAP device
+        // IFF_NO_PI: frames have no packet info header
         ifr.ifr_flags = IFF_TAP | IFF_NO_PI; 
 
         if(!device_name.empty()){
@@ -45,34 +44,6 @@ namespace vswitch {
     TapDevice::~TapDevice() {
         if(fd_ >= 0){
             close(fd_);
-        }
-    }
-
-    std::vector<uint8_t> TapDevice::read_frame(){
-        std::vector<uint8_t> buffer(1518);
-
-        ssize_t bytes_read = read(buffer.data(), buffer.size());
-
-        if(bytes_read < 0){
-            throw std::runtime_error("Failed to read from TAP: " + 
-                                 std::string(strerror(errno)));
-        }
-
-        buffer.resize(bytes_read);
-
-        return buffer;
-    }
-
-    void TapDevice::write_frame(const std::vector<uint8_t>& frame){
-        ssize_t bytes_written = write(frame.data(), frame.size());
-
-        if (bytes_written < 0){
-            throw std::runtime_error("Failed to write to TAP: " + 
-                                 std::string(strerror(errno)));
-        }
-
-        if(static_cast<size_t>(bytes_written) != frame.size()){
-            throw std::runtime_error("Partial write to TAP device");
         }
     }
 

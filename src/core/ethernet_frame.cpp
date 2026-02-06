@@ -12,6 +12,7 @@ namespace vswitch {
         raw_frame_ = raw_frame;
         std::copy(raw_frame.begin(), raw_frame.begin() + 6, dst_mac_.begin());
         std::copy(raw_frame.begin() + 6, raw_frame.begin() + 12, src_mac_.begin());
+        // EtherType is big-endian (network byte order)
         ethertype_ = (static_cast<uint16_t>(raw_frame[12]) << 8) | 
                       static_cast<uint16_t>(raw_frame[13]);
         payload_.assign(raw_frame.begin() + 14, raw_frame.end());

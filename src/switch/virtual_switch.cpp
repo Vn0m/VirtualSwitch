@@ -11,20 +11,20 @@ namespace vswitch {
     VirtualSwitch::~VirtualSwitch() {
     }
 
-    void VirtualSwitch::add_port(std::unique_ptr<TapDevice> tap_device) {
-        ports_.push_back(std::move(tap_device));
+    void VirtualSwitch::add_port(std::unique_ptr<Port> port) {
+        ports_.push_back(std::move(port));
     }
 
-    void VirtualSwitch::learn_mac_address(const std::array<uint8_t, 6>& mac, TapDevice* port) {
+    void VirtualSwitch::learn_mac_address(const std::array<uint8_t, 6>& mac, Port* port) {
         std::string mac_str = EthernetFrame::mac_to_string(mac);
         mac_address_table_[mac_str] = MacEntry{port, std::chrono::steady_clock::now()};
     }
 
-    void VirtualSwitch::forward_frame(const EthernetFrame& frame, TapDevice* source_port) {
+    void VirtualSwitch::forward_frame(const EthernetFrame& frame, Port* source_port) {
         std::string dst_mac = EthernetFrame::mac_to_string(frame.get_dst_mac());
         auto it = mac_address_table_.find(dst_mac);
         if (it != mac_address_table_.end()) {
-            TapDevice* dest_port = it->second.port;
+            Port* dest_port = it->second.port;
             if (dest_port != source_port) {
                 dest_port->write(frame.get_raw_frame().data(), frame.get_raw_frame().size());
             }

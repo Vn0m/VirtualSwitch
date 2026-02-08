@@ -5,10 +5,16 @@
 #include <unordered_map>
 #include <memory>
 #include <cstdint>
+#include <chrono>
 #include "network/tap_device.hpp"
 #include "core/ethernet_frame.hpp"
 
 namespace vswitch {
+
+struct MacEntry {
+    TapDevice* port;
+    std::chrono::steady_clock::time_point learned_at;
+};
 class VirtualSwitch {
 public:
     VirtualSwitch();
@@ -23,8 +29,11 @@ public:
     void run();
 
 private:
-    std::unordered_map<std::string, TapDevice*> mac_address_table_;
+    static constexpr int FDB_AGING_TIME = 300;
+    std::unordered_map<std::string, MacEntry> mac_address_table_;
     std::vector<std::unique_ptr<TapDevice>> ports_;
+    
+    void age_out_mac_entries();
 };
 
 } // namespace vswitch

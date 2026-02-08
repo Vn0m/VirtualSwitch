@@ -17,14 +17,14 @@ namespace vswitch {
 
     void VirtualSwitch::learn_mac_address(const std::array<uint8_t, 6>& mac, TapDevice* port) {
         std::string mac_str = EthernetFrame::mac_to_string(mac);
-        mac_address_table_[mac_str] = port;
+        mac_address_table_[mac_str] = MacEntry{port, std::chrono::steady_clock::now()};
     }
 
     void VirtualSwitch::forward_frame(const EthernetFrame& frame, TapDevice* source_port) {
         std::string dst_mac = EthernetFrame::mac_to_string(frame.get_dst_mac());
         auto it = mac_address_table_.find(dst_mac);
         if (it != mac_address_table_.end()) {
-            TapDevice* dest_port = it->second;
+            TapDevice* dest_port = it->second.port;
             if (dest_port != source_port) {
                 dest_port->write(frame.get_raw_frame().data(), frame.get_raw_frame().size());
             }
@@ -42,9 +42,21 @@ namespace vswitch {
         std::ostringstream oss;
         oss << "MAC Address Table:\n";
         for (const auto& entry : mac_address_table_) {
-            oss << entry.first << " -> " << entry.second->get_name() << "\n";
+            oss << entry.first << " -> " << entry.second.port->get_name() << "\n";
         }
         return oss.str();
+    }
+
+    void VirtualSwitch::age_out_mac_entries() {
+        auto now = std::chrono::steady_clock::now();
+        for (auto it = mac_address_table_.begin(); it != mac_address_table_.end();) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.learned_at);
+            if (elapsed.count() > FDB_AGING_TIME) {
+                it = mac_address_table_.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     void VirtualSwitch::run() {
@@ -80,7 +92,8 @@ namespace vswitch {
                                   << EthernetFrame::mac_to_string(frame.get_dst_mac())
                                   << " (" << len << " bytes)" << std::endl;
                         
-                        learn_mac_address(frame.get_src_mac(), ports_[i].get());                        
+                        learn_mac_address(frame.get_src_mac(), ports_[i].get());
+                        age_out_mac_entries();
                         std::cout << "\n" << mac_table_to_string() << std::endl;                        
                         forward_frame(frame, ports_[i].get());
                         buffer.resize(MAX_FRAME_SIZE);

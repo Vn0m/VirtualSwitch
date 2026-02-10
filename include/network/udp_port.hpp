@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstdint>
+#include <netinet/in.h>
 #include "network/port.hpp"
 
 namespace vswitch {

@@ -90,4 +90,13 @@ namespace vswitch {
                         reinterpret_cast<const sockaddr*>(&remote_addr_), sizeof(remote_addr_));
     }
 
+    void UdpPort::punch(int attempts) {
+        const uint8_t punch_packet[4] = {0, 0, 0, 0};
+        for (int i = 0; i < attempts; ++i) {
+            ::sendto(fd_, punch_packet, sizeof(punch_packet), 0,
+                     reinterpret_cast<const sockaddr*>(&remote_addr_), sizeof(remote_addr_));
+            usleep(50000); 
+        }
+    }
+
 } // namespace vswitch

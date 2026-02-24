@@ -26,6 +26,8 @@ public:
     ssize_t write(const uint8_t* buffer, size_t size) override;
     bool is_local() const override { return false; }
 
+    void punch(int attempts = 10);
+
 private:
     int fd_;
     std::string name_;

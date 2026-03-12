@@ -12,6 +12,7 @@ add_library(vswitch_core
     src/core/ethernet_frame.cpp
     src/network/tap_device.cpp
     src/network/udp_port.cpp
+    src/network/stun_client.cpp
     src/switch/virtual_switch.cpp
 )
 

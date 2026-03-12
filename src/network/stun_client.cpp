@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstring>
+#include <random>
 #include <stdexcept>
 
 namespace vswitch {
@@ -70,8 +71,13 @@ StunAddress StunClient::get_public_address() {
     request[3] = 0x00;
     request[4] = 0x21; request[5] = 0x12;
     request[6] = 0xA4; request[7] = 0x42;
-    for (int i = 8; i < 20; ++i) {
-        request[i] = static_cast<uint8_t>(i * 7 + 3);
+    {
+        std::random_device rd;
+        std::mt19937 rng(rd());
+        std::uniform_int_distribution<uint8_t> dist(0, 255);
+        for (int i = 8; i < 20; ++i) {
+            request[i] = dist(rng);
+        }
     }
 
     ssize_t sent = ::sendto(fd, request.data(), request.size(), 0,
@@ -101,28 +107,46 @@ StunAddress StunClient::get_public_address() {
 
     uint16_t msg_len = (static_cast<uint16_t>(response[2]) << 8) | response[3];
 
+    size_t response_size = static_cast<size_t>(received);
+    size_t attrs_end = std::min(static_cast<size_t>(STUN_HEADER_SIZE + msg_len), response_size);
+
     size_t offset = STUN_HEADER_SIZE;
-    while (offset + 4 <= static_cast<size_t>(STUN_HEADER_SIZE + msg_len)) {
-        uint16_t attr_type   = (static_cast<uint16_t>(response[offset]) << 8) | response[offset + 1];
+    while (offset + 4 <= attrs_end) {
+        uint16_t attr_type   = (static_cast<uint16_t>(response[offset])     << 8) | response[offset + 1];
         uint16_t attr_length = (static_cast<uint16_t>(response[offset + 2]) << 8) | response[offset + 3];
         offset += 4;
 
+        if (offset + attr_length > response_size) break;
+
         if (attr_type == STUN_ATTR_XOR_MAPPED_ADDRESS || attr_type == STUN_ATTR_MAPPED_ADDRESS) {
             if (attr_length < 8) break;
+
+            uint8_t family = response[offset + 1];
+            if (family != 0x01) {
+                offset += (attr_length + 3) & ~3;
+                continue;
+            }
 
             uint16_t raw_port;
             uint32_t raw_ip;
             std::memcpy(&raw_port, &response[offset + 2], sizeof(raw_port));
             std::memcpy(&raw_ip,   &response[offset + 4], sizeof(raw_ip));
 
+            uint32_t host_ip;
             StunAddress result;
             if (attr_type == STUN_ATTR_XOR_MAPPED_ADDRESS) {
                 result.port = ntohs(raw_port) ^ (STUN_MAGIC_COOKIE >> 16);
-                result.ip   = inet_ntoa({raw_ip ^ htonl(STUN_MAGIC_COOKIE)});
+                host_ip = raw_ip ^ htonl(STUN_MAGIC_COOKIE);
             } else {
                 result.port = ntohs(raw_port);
-                result.ip   = inet_ntoa({raw_ip});
+                host_ip = raw_ip;
             }
+
+            char ip_buf[INET_ADDRSTRLEN]{};
+            if (::inet_ntop(AF_INET, &host_ip, ip_buf, sizeof(ip_buf)) == nullptr) {
+                throw std::runtime_error("Failed to convert IP address");
+            }
+            result.ip = ip_buf;
             return result;
         }
 

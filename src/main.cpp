@@ -5,15 +5,17 @@
 #include <cstring>
 #include "network/tap_device.hpp"
 #include "network/udp_port.hpp"
+#include "network/stun_client.hpp"
 #include "switch/virtual_switch.hpp"
 
 void print_usage(const char* prog_name) {
 	std::cerr << "Usage: " << prog_name << " [OPTIONS]\n"
 	          << "Options:\n"
-	          << "  --local <tap_name>           Add local TAP device\n"
+	          << "  --local <tap_name>                         Add local TAP device\n"
 	          << "  --udp <local_ip:local_port:remote_ip:remote_port>  Add UDP peer\n"
+	          << "  --stun <host:port>                         Discover public IP via STUN\n"
 	          << "Example:\n"
-	          << "  " << prog_name << " --local tap0 --udp 0.0.0.0:5000:192.168.1.5:5000\n";
+	          << "  " << prog_name << " --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:PEER_IP:5000\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -21,6 +23,7 @@ int main(int argc, char* argv[]) {
 		vswitch::VirtualSwitch vswitch;
 		std::vector<std::string> local_taps;
 		std::vector<std::string> udp_peers;
+		std::string stun_server;
 
 		for (int i = 1; i < argc; ++i) {
 			std::string arg = argv[i];
@@ -28,6 +31,8 @@ int main(int argc, char* argv[]) {
 				local_taps.push_back(argv[++i]);
 			} else if (arg == "--udp" && i + 1 < argc) {
 				udp_peers.push_back(argv[++i]);
+			} else if (arg == "--stun" && i + 1 < argc) {
+				stun_server = argv[++i];
 			} else if (arg == "--help" || arg == "-h") {
 				print_usage(argv[0]);
 				return 0;
@@ -70,6 +75,10 @@ int main(int argc, char* argv[]) {
 			std::cout << "Created UDP port: " << udp->get_name() 
 			          << " (local=" << local_ip << ":" << local_port 
 			          << ", remote=" << remote_ip << ":" << remote_port << ")" << std::endl;
+
+			std::cout << "Punching NAT hole to " << remote_ip << ":" << remote_port << "..." << std::endl;
+			udp->punch();
+
 			vswitch.add_port(std::move(udp));
 		}
 
@@ -77,6 +86,32 @@ int main(int argc, char* argv[]) {
 			std::cerr << "No ports configured. Use --local or --udp to add ports.\n";
 			print_usage(argv[0]);
 			return 1;
+		}
+
+		if (!stun_server.empty()) {
+			size_t colon = stun_server.rfind(':');
+			if (colon == std::string::npos) {
+				std::cerr << "Invalid STUN server format. Expected host:port\n";
+				return 1;
+			}
+			std::string stun_host = stun_server.substr(0, colon);
+			uint16_t stun_port = static_cast<uint16_t>(std::stoi(stun_server.substr(colon + 1)));
+
+			uint16_t probe_port = 5000;
+			if (!udp_peers.empty()) {
+				size_t fc = udp_peers[0].find(':');
+				size_t sc = udp_peers[0].find(':', fc + 1);
+				probe_port = static_cast<uint16_t>(std::stoi(udp_peers[0].substr(fc + 1, sc - fc - 1)));
+			}
+
+			try {
+				vswitch::StunClient stun(stun_host, stun_port, probe_port);
+				auto addr = stun.get_public_address();
+				std::cout << "\nYour public address: " << addr.ip << ":" << addr.port
+				          << "  <-- share this with your peer\n" << std::endl;
+			} catch (const std::exception& e) {
+				std::cerr << "STUN failed: " << e.what() << std::endl;
+			}
 		}
 
 		std::cout << "\nSwitch running. Waiting for frames...\n" << std::endl;

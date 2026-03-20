@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <random>
@@ -13,21 +14,23 @@
 
 namespace vswitch {
 
-// STUN messages, attributes and magic cookie defined by RFC 5389. 
+// STUN messages, attributes and magic cookie (RFC 8489).
 static constexpr uint16_t STUN_BINDING_REQUEST  = 0x0001;
 static constexpr uint16_t STUN_BINDING_RESPONSE = 0x0101;
 
-static constexpr uint16_t STUN_ATTR_MAPPED_ADDRESS     = 0x0001;
 static constexpr uint16_t STUN_ATTR_XOR_MAPPED_ADDRESS = 0x0020;
+static constexpr uint16_t STUN_ATTR_MAPPED_ADDRESS     = 0x0001;
 
 static constexpr uint32_t STUN_MAGIC_COOKIE = 0x2112A442;
 
-// STUN header:
-//   2 bytes type
-//   2 bytes length
+// STUN message header:
+//   2 bytes message type 
+//   2 bytes message length
 //   4 bytes magic cookie
 //  12 bytes transaction ID
 static constexpr size_t STUN_HEADER_SIZE = 20;
+static constexpr size_t STUN_TXID_OFFSET = 8;
+static constexpr size_t STUN_TXID_SIZE   = 12;
 
 StunClient::StunClient(const std::string& stun_host, uint16_t stun_port, uint16_t local_port)
     : stun_host_(stun_host), stun_port_(stun_port), local_port_(local_port) {}
@@ -71,12 +74,13 @@ StunAddress StunClient::get_public_address() {
     request[3] = 0x00;
     request[4] = 0x21; request[5] = 0x12;
     request[6] = 0xA4; request[7] = 0x42;
+    
+    std::array<uint8_t, STUN_TXID_SIZE> txid{};
     {
         std::random_device rd;
-        std::mt19937 rng(rd());
-        std::uniform_int_distribution<uint8_t> dist(0, 255);
-        for (int i = 8; i < 20; ++i) {
-            request[i] = dist(rng);
+        for (size_t i = 0; i < STUN_TXID_SIZE; ++i) {
+            txid[i] = static_cast<uint8_t>(rd());
+            request[STUN_TXID_OFFSET + i] = txid[i];
         }
     }
 
@@ -103,6 +107,18 @@ StunAddress StunClient::get_public_address() {
     uint16_t msg_type = (static_cast<uint16_t>(response[0]) << 8) | response[1];
     if (msg_type != STUN_BINDING_RESPONSE) {
         throw std::runtime_error("Unexpected STUN message type");
+    }
+
+    uint32_t magic_cookie = (static_cast<uint32_t>(response[4]) << 24) |
+                            (static_cast<uint32_t>(response[5]) << 16) |
+                            (static_cast<uint32_t>(response[6]) << 8)  |
+                            static_cast<uint32_t>(response[7]);
+    if (magic_cookie != STUN_MAGIC_COOKIE) {
+        throw std::runtime_error("Invalid STUN magic cookie");
+    }
+
+    if (!std::equal(txid.begin(), txid.end(), response.begin() + STUN_TXID_OFFSET)) {
+        throw std::runtime_error("STUN transaction ID mismatch");
     }
 
     uint16_t msg_len = (static_cast<uint16_t>(response[2]) << 8) | response[3];

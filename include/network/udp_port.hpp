@@ -24,7 +24,6 @@ public:
     int get_fd() const override { return fd_; }
     ssize_t read(uint8_t* buffer, size_t size) override;
     ssize_t write(const uint8_t* buffer, size_t size) override;
-    bool is_local() const override { return false; }
 
     void punch(int attempts = 10);
 

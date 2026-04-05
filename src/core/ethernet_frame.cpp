@@ -30,4 +30,8 @@ std::string EthernetFrame::mac_to_string(const std::array<uint8_t, 6>& mac) {
     return oss.str();
 }
 
+bool EthernetFrame::is_multicast(const std::array<uint8_t, 6> & mac){
+    return mac[0] & 0x01;
+}
+
 } // namespace vswitch

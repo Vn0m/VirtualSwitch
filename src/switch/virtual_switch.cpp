@@ -14,6 +14,15 @@ void VirtualSwitch::learn_mac_address(const std::array<uint8_t, 6>& mac, Port* p
 }
 
 void VirtualSwitch::forward_frame(const EthernetFrame& frame, const uint8_t* data, size_t len, Port* source_port) {
+    if (EthernetFrame::is_multicast(frame.get_dst_mac())) {
+        for (const auto& port : ports_){
+            if (port.get() != source_port){
+                port->write(data, len);
+            }
+        }
+        return;
+    }
+    
     std::string dst_mac = EthernetFrame::mac_to_string(frame.get_dst_mac());
     auto it = mac_address_table_.find(dst_mac);
     if (it != mac_address_table_.end()) {

@@ -27,8 +27,12 @@ namespace vswitch {
         // IFF_NO_PI: frames have no packet info header
         ifr.ifr_flags = IFF_TAP | IFF_NO_PI; 
 
-        if(!device_name.empty()){
-            strncpy(ifr.ifr_name, device_name.c_str(), IFNAMSIZ);
+        if (!device_name.empty()) {
+            if (device_name.size() >= IFNAMSIZ) {
+                ::close(fd_);
+                throw std::runtime_error("TAP device name too long: " + device_name);
+            }
+            strncpy(ifr.ifr_name, device_name.c_str(), IFNAMSIZ - 1);
         }
         
         if(ioctl(fd_, TUNSETIFF, &ifr) < 0){

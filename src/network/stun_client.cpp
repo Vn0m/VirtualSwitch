@@ -72,8 +72,8 @@ StunAddress StunClient::get_public_address() {
     request[1] =  STUN_BINDING_REQUEST       & 0xFF;
     request[2] = 0x00;
     request[3] = 0x00;
-    request[4] = 0x21; request[5] = 0x12;
-    request[6] = 0xA4; request[7] = 0x42;
+    uint32_t cookie_be = htonl(STUN_MAGIC_COOKIE);
+    std::memcpy(&request[4], &cookie_be, sizeof(cookie_be));
     
     std::array<uint8_t, STUN_TXID_SIZE> txid{};
     {

@@ -32,10 +32,8 @@ static constexpr size_t STUN_HEADER_SIZE = 20;
 static constexpr size_t STUN_TXID_OFFSET = 8;
 static constexpr size_t STUN_TXID_SIZE   = 12;
 
-StunClient::StunClient(const std::string& stun_host, uint16_t stun_port, uint16_t local_port)
-    : stun_host_(stun_host), stun_port_(stun_port), local_port_(local_port) {}
-
-StunClient::~StunClient() {}
+StunClient::StunClient(const std::string& stun_host, uint16_t stun_port, int fd)
+    : stun_host_(stun_host), stun_port_(stun_port), fd_(fd) {}
 
 StunAddress StunClient::get_public_address() {
     addrinfo hints{};
@@ -52,20 +50,7 @@ StunAddress StunClient::get_public_address() {
     std::memcpy(&stun_addr, res->ai_addr, sizeof(stun_addr));
     ::freeaddrinfo(res);
 
-    int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        throw std::runtime_error("Failed to create STUN socket");
-    }
-
-    sockaddr_in local_addr{};
-    local_addr.sin_family = AF_INET;
-    local_addr.sin_addr.s_addr = INADDR_ANY;
-    local_addr.sin_port = htons(local_port_);
-
-    if (::bind(fd, reinterpret_cast<sockaddr*>(&local_addr), sizeof(local_addr)) < 0) {
-        ::close(fd);
-        throw std::runtime_error("Failed to bind STUN socket on port " + std::to_string(local_port_));
-    }
+    int fd = fd_;
 
     std::array<uint8_t, STUN_HEADER_SIZE> request{};
     request[0] = (STUN_BINDING_REQUEST >> 8) & 0xFF;
@@ -87,7 +72,6 @@ StunAddress StunClient::get_public_address() {
     ssize_t sent = ::sendto(fd, request.data(), request.size(), 0,
                             reinterpret_cast<sockaddr*>(&stun_addr), sizeof(stun_addr));
     if (sent < 0) {
-        ::close(fd);
         throw std::runtime_error("Failed to send STUN request");
     }
 
@@ -98,7 +82,9 @@ StunAddress StunClient::get_public_address() {
 
     std::array<uint8_t, 512> response{};
     ssize_t received = ::recv(fd, response.data(), response.size(), 0);
-    ::close(fd);
+
+    timeval tv_zero{};
+    ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv_zero, sizeof(tv_zero));
 
     if (received < static_cast<ssize_t>(STUN_HEADER_SIZE)) {
         throw std::runtime_error("STUN response too short or timed out");

@@ -49,13 +49,26 @@ int main(int argc, char* argv[]) {
 			vswitch.add_port(std::move(tap));
 		}
 
+		std::string stun_host;
+		uint16_t stun_port = 0;
+		if (!stun_server.empty()) {
+			size_t colon = stun_server.rfind(':');
+			if (colon == std::string::npos) {
+				std::cerr << "Invalid STUN server format. Expected host:port\n";
+				return 1;
+			}
+			stun_host = stun_server.substr(0, colon);
+			stun_port = static_cast<uint16_t>(std::stoi(stun_server.substr(colon + 1)));
+		}
+
+		bool stun_done = false;
 		for (const auto& peer : udp_peers) {
 			size_t first_colon = peer.find(':');
 			size_t second_colon = peer.find(':', first_colon + 1);
 			size_t third_colon = peer.find(':', second_colon + 1);
 
-			if (first_colon == std::string::npos || 
-			    second_colon == std::string::npos || 
+			if (first_colon == std::string::npos ||
+			    second_colon == std::string::npos ||
 			    third_colon == std::string::npos) {
 				std::cerr << "Invalid UDP peer format: " << peer << "\n";
 				print_usage(argv[0]);
@@ -72,9 +85,21 @@ int main(int argc, char* argv[]) {
 
 			std::string name = "udp_" + remote_ip + ":" + remote_port_str;
 			auto udp = std::make_unique<vswitch::UdpPort>(name, local_ip, local_port, remote_ip, remote_port);
-			std::cout << "Created UDP port: " << udp->get_name() 
-			          << " (local=" << local_ip << ":" << local_port 
+			std::cout << "Created UDP port: " << udp->get_name()
+			          << " (local=" << local_ip << ":" << local_port
 			          << ", remote=" << remote_ip << ":" << remote_port << ")" << std::endl;
+
+			if (!stun_done && !stun_host.empty()) {
+				try {
+					vswitch::StunClient stun(stun_host, stun_port, udp->get_fd());
+					auto addr = stun.get_public_address();
+					std::cout << "\nYour public address: " << addr.ip << ":" << addr.port
+					          << "  <-- share this with your peer\n" << std::endl;
+				} catch (const std::exception& e) {
+					std::cerr << "STUN failed: " << e.what() << std::endl;
+				}
+				stun_done = true;
+			}
 
 			std::cout << "Punching NAT hole to " << remote_ip << ":" << remote_port << "..." << std::endl;
 			udp->punch();
@@ -86,32 +111,6 @@ int main(int argc, char* argv[]) {
 			std::cerr << "No ports configured. Use --local or --udp to add ports.\n";
 			print_usage(argv[0]);
 			return 1;
-		}
-
-		if (!stun_server.empty()) {
-			size_t colon = stun_server.rfind(':');
-			if (colon == std::string::npos) {
-				std::cerr << "Invalid STUN server format. Expected host:port\n";
-				return 1;
-			}
-			std::string stun_host = stun_server.substr(0, colon);
-			uint16_t stun_port = static_cast<uint16_t>(std::stoi(stun_server.substr(colon + 1)));
-
-			uint16_t probe_port = 5000;
-			if (!udp_peers.empty()) {
-				size_t fc = udp_peers[0].find(':');
-				size_t sc = udp_peers[0].find(':', fc + 1);
-				probe_port = static_cast<uint16_t>(std::stoi(udp_peers[0].substr(fc + 1, sc - fc - 1)));
-			}
-
-			try {
-				vswitch::StunClient stun(stun_host, stun_port, probe_port);
-				auto addr = stun.get_public_address();
-				std::cout << "\nYour public address: " << addr.ip << ":" << addr.port
-				          << "  <-- share this with your peer\n" << std::endl;
-			} catch (const std::exception& e) {
-				std::cerr << "STUN failed: " << e.what() << std::endl;
-			}
 		}
 
 		std::cout << "\nSwitch running. Waiting for frames...\n" << std::endl;

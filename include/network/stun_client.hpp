@@ -12,8 +12,8 @@ struct StunAddress {
 
 class StunClient {
 public:
-    StunClient(const std::string& stun_host, uint16_t stun_port, uint16_t local_port);
-    ~StunClient();
+    StunClient(const std::string& stun_host, uint16_t stun_port, int fd);
+    ~StunClient() = default;
 
     StunClient(const StunClient&) = delete;
     StunClient& operator=(const StunClient&) = delete;
@@ -23,7 +23,7 @@ public:
 private:
     std::string stun_host_;
     uint16_t stun_port_;
-    uint16_t local_port_;
+    int fd_;
 };
 
 } // namespace vswitch

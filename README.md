@@ -21,7 +21,9 @@ Play Minecraft, Valheim, or any LAN game with friends across the internet withou
 - LAN Gaming Over Internet - Play peer-to-peer without dedicated servers
 - UDP Tunneling - Transparent frame forwarding across internet
 - MAC Learning - Automatic MAC address table with 300s TTL aging
-- Efficient - Poll-based event loop for minimal overhead (~0.3MB/s Minecraft)
+- Broadcast/Multicast - ARP and game discovery frames correctly flooded to all peers
+- Peer Validation - Frames from unknown sources are dropped
+- Efficient - Poll-based event loop, zero per-frame heap allocations
 - Multi-port - Support unlimited local TAPs and UDP peers
 - No Setup - Works same machine, LAN, or internet
 
@@ -69,10 +71,10 @@ curl ifconfig.me
 **Frame Flow:**
 1. App sends packet → TAP device
 2. VirtualSwitch reads frame, learns source MAC
-3. MAC table lookup for destination
-4. Forward to local TAP or encapsulate and send via UDP
-5. Remote switch receives UDP, decapsulates, forwards to local TAP
-6. Remote app receives normally
+3. Broadcast/multicast → flood to all peers. Unicast → MAC table lookup
+4. Known destination → forward directly. Unknown → flood to all peers
+5. UDP peers: frame is encapsulated and sent over internet
+6. Remote switch decapsulates, forwards to local TAP → remote app receives normally
 
 **Frame Encapsulation:** `[4-byte length][Ethernet frame]`
 

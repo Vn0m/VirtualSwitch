@@ -40,33 +40,31 @@ Requirements: Linux, C++17, CMake 3.15+
 
 ## Quick Start
 
-**Computer A:**
+**Computer A** — run this, it will print your public IP:port:
 ```bash
-sudo ./vswitch --local tap0 --udp 0.0.0.0:5000:B_IP:5000
+sudo ./vswitch --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:B_IP:5000
 sudo ip addr add 10.0.0.1/24 dev tap0
 sudo ip link set tap0 up
 ```
+Output: `Your public address: 203.0.113.5:5000  <-- share this with your peer`
 
-**Computer B:**
+**Computer B** — replace `A_IP` with what A printed:
 ```bash
-sudo ./vswitch --local tap0 --udp 0.0.0.0:5000:A_IP:5000
+sudo ./vswitch --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:A_IP:5000
 sudo ip addr add 10.0.0.2/24 dev tap0
 sudo ip link set tap0 up
 ```
 
 **Test:**
 ```bash
-ping 10.0.0.2  
+ping 10.0.0.2
 ```
 
 Then start Minecraft on both machines - server appears in LAN list automatically.
 
-Find your public IP:
-```bash
-curl ifconfig.me
-```
-
 ## Architecture
+
+![Architecture](architecture.png)
 
 **Frame Flow:**
 1. App sends packet → TAP device

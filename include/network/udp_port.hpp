@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <netinet/in.h>
 #include "network/port.hpp"
+#include <sodium.h>
+#include <array>
+#include <optional>
 
 namespace vswitch {
 
@@ -13,7 +16,8 @@ public:
             const std::string& local_ip,
             uint16_t local_port,
             const std::string& remote_ip,
-            uint16_t remote_port);
+            uint16_t remote_port,
+            std::optional<std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_KEYBYTES>> key = std::nullopt);
 
     ~UdpPort();
 
@@ -31,6 +35,7 @@ private:
     int fd_;
     std::string name_;
     struct sockaddr_in remote_addr_;
+    std::optional<std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_KEYBYTES>> key_;
 };
 
 } // namespace vswitch

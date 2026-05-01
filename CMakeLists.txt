@@ -8,6 +8,9 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SODIUM REQUIRED libsodium)
+
 add_library(vswitch_core
     src/core/ethernet_frame.cpp
     src/network/tap_device.cpp
@@ -18,10 +21,12 @@ add_library(vswitch_core
 
 target_include_directories(vswitch_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
+    ${SODIUM_INCLUDE_DIRS}
 )
 
 add_executable(vswitch
     src/main.cpp
 )
 
+target_link_libraries(vswitch_core PUBLIC ${SODIUM_LIBRARIES})
 target_link_libraries(vswitch PRIVATE vswitch_core)

@@ -55,6 +55,13 @@ sudo ip addr add 10.0.0.2/24 dev tap0
 sudo ip link set tap0 up
 ```
 
+**With encryption** — generate a key and pass it to both peers:
+```bash
+cat /dev/urandom | head -c 32 | xxd -p -c 32
+
+sudo ip link set tap0 mtu 1414
+```
+
 **Test:**
 ```bash
 ping 10.0.0.2
@@ -74,7 +81,9 @@ Then start Minecraft on both machines - server appears in LAN list automatically
 5. UDP peers: frame is encapsulated and sent over internet
 6. Remote switch decapsulates, forwards to local TAP → remote app receives normally
 
-**Frame Encapsulation:** `[4-byte length][Ethernet frame]`
+**Frame Encapsulation (no encryption):** `[4-byte length][Ethernet frame]`
+
+**Frame Encapsulation (with encryption):** `[4-byte length][24-byte nonce][ciphertext + 16-byte tag]` — XChaCha20-Poly1305
 
 ## Usage
 
@@ -83,6 +92,7 @@ Then start Minecraft on both machines - server appears in LAN list automatically
 
   --local <name>            Add local TAP device
   --udp <local_ip:port:remote_ip:port>  Add UDP peer
+  --key <hex>               32-byte pre-shared key in hex (enables XChaCha20-Poly1305 encryption)
   --help                    Show help
 
 Example (3+ players):

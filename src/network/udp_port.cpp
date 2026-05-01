@@ -13,8 +13,9 @@ UdpPort::UdpPort(const std::string& name,
                  const std::string& local_ip,
                  uint16_t local_port,
                  const std::string& remote_ip,
-                 uint16_t remote_port)
-    : fd_(-1), name_(name) {
+                 uint16_t remote_port,
+                 std::optional<std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_KEYBYTES>> key)
+    : fd_(-1), name_(name), key_(key) {
     fd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_ < 0) {
         throw std::runtime_error("Failed to create UDP socket");
@@ -86,8 +87,38 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
 }
 
 ssize_t UdpPort::write(const uint8_t* buffer, size_t size) {
-    uint32_t net_len = htonl(static_cast<uint32_t>(size));
+    if (key_) {
+        uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+        randombytes_buf(nonce, sizeof(nonce));
 
+        uint8_t ciphertext[1518 + crypto_aead_xchacha20poly1305_ietf_ABYTES];
+        unsigned long long ciphertext_len = 0;
+        crypto_aead_xchacha20poly1305_ietf_encrypt(
+            ciphertext, &ciphertext_len,
+            buffer, size,
+            nullptr, 0,
+            nullptr, nonce, key_->data());
+
+        uint32_t net_len = htonl(static_cast<uint32_t>(sizeof(nonce) + ciphertext_len));
+
+        iovec iov[3];
+        iov[0].iov_base = &net_len;
+        iov[0].iov_len  = sizeof(net_len);
+        iov[1].iov_base = nonce;
+        iov[1].iov_len  = sizeof(nonce);
+        iov[2].iov_base = ciphertext;
+        iov[2].iov_len  = ciphertext_len;
+
+        msghdr msg{};
+        msg.msg_name    = const_cast<sockaddr_in*>(&remote_addr_);
+        msg.msg_namelen = sizeof(remote_addr_);
+        msg.msg_iov     = iov;
+        msg.msg_iovlen  = 3;
+
+        return ::sendmsg(fd_, &msg, 0);
+    }
+
+    uint32_t net_len = htonl(static_cast<uint32_t>(size));
     iovec iov[2];
     iov[0].iov_base = &net_len;
     iov[0].iov_len  = sizeof(net_len);

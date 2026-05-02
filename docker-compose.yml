@@ -1,0 +1,34 @@
+x-peer: &peer
+  platform: linux/amd64
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  cap_add:
+    - NET_ADMIN
+    - NET_RAW
+  devices:
+    - /dev/net/tun:/dev/net/tun
+  environment:
+    - DISPLAY=${DISPLAY:-host.orbstack.internal:0}
+  volumes:
+    - .:/workspace
+    - ${HOME}/terraria:/terraria:ro
+    - terraria_saves:/root/.local/share/Terraria
+  tty: true
+  stdin_open: true
+
+services:
+  peer1:
+    <<: *peer
+    hostname: peer1
+    ports:
+      - "5001:5000/udp"
+
+  peer2:
+    <<: *peer
+    hostname: peer2
+    ports:
+      - "5002:5000/udp"
+
+volumes:
+  terraria_saves:

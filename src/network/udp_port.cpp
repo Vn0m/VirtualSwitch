@@ -51,7 +51,7 @@ UdpPort::~UdpPort() {
 }
 
 ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
-    uint8_t packet[1604];
+    uint8_t packet[sizeof(uint32_t) + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES + 1518 + crypto_aead_xchacha20poly1305_ietf_ABYTES];
     sockaddr_in src_addr;
     socklen_t src_len = sizeof(src_addr);
 

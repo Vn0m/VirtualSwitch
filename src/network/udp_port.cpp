@@ -51,11 +51,13 @@ UdpPort::~UdpPort() {
 }
 
 ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
-    uint8_t packet[sizeof(uint32_t) + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES + 1518 + crypto_aead_xchacha20poly1305_ietf_ABYTES];
+    constexpr size_t MAX_PACKET = sizeof(uint32_t) + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+                                  + 1518 + crypto_aead_xchacha20poly1305_ietf_ABYTES;
+    std::array<uint8_t, MAX_PACKET> packet{};
     sockaddr_in src_addr;
     socklen_t src_len = sizeof(src_addr);
 
-    ssize_t bytes = ::recvfrom(fd_, packet, sizeof(packet), 0,
+    ssize_t bytes = ::recvfrom(fd_, packet.data(), packet.size(), 0,
                                reinterpret_cast<sockaddr*>(&src_addr), &src_len);
     if (bytes <= 0) {
         return bytes;
@@ -71,42 +73,75 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
     }
 
     uint32_t net_len = 0;
-    std::memcpy(&net_len, packet, sizeof(uint32_t));
+    std::memcpy(&net_len, packet.data(), sizeof(uint32_t));
     uint32_t frame_len = ntohl(net_len);
 
     if (frame_len == 0 || frame_len > size) {
         return 0;
     }
 
+    if (key_) {
+        if (bytes < static_cast<ssize_t>(sizeof(uint32_t)
+                + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+                + crypto_aead_xchacha20poly1305_ietf_ABYTES)) {
+            return 0;
+        }
+
+        if (frame_len < crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
+                + crypto_aead_xchacha20poly1305_ietf_ABYTES) {
+            return 0;
+        }
+
+        std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES> nonce{};
+        std::array<uint8_t, 1518> decrypted{};
+        unsigned long long decrypted_len = 0;
+        
+        std::memcpy(nonce.data(), packet.data() + sizeof(uint32_t), nonce.size());
+
+        uint8_t *ciphertext = packet.data() + sizeof(uint32_t) + nonce.size();
+        size_t ciphertext_len = frame_len - nonce.size();
+        
+        if (crypto_aead_xchacha20poly1305_ietf_decrypt(
+                decrypted.data(), &decrypted_len, nullptr,
+                ciphertext, ciphertext_len,
+                nullptr, 0,
+                nonce.data(), key_->data()) != 0) {
+            return 0;
+        }
+
+        std::memcpy(buffer, decrypted.data(), decrypted_len);
+        return static_cast<ssize_t>(decrypted_len);
+    }
+
     if (bytes < static_cast<ssize_t>(sizeof(uint32_t) + frame_len)) {
         return 0;
     }
 
-    std::memcpy(buffer, packet + sizeof(uint32_t), frame_len);
+    std::memcpy(buffer, packet.data() + sizeof(uint32_t), frame_len);
     return static_cast<ssize_t>(frame_len);
 }
 
 ssize_t UdpPort::write(const uint8_t* buffer, size_t size) {
     if (key_) {
-        uint8_t nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
-        randombytes_buf(nonce, sizeof(nonce));
+        std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES> nonce{};
+        randombytes_buf(nonce.data(), nonce.size());
 
-        uint8_t ciphertext[1518 + crypto_aead_xchacha20poly1305_ietf_ABYTES];
+        std::array<uint8_t, 1518 + crypto_aead_xchacha20poly1305_ietf_ABYTES> ciphertext{};
         unsigned long long ciphertext_len = 0;
         crypto_aead_xchacha20poly1305_ietf_encrypt(
-            ciphertext, &ciphertext_len,
+            ciphertext.data(), &ciphertext_len,
             buffer, size,
             nullptr, 0,
-            nullptr, nonce, key_->data());
+            nullptr, nonce.data(), key_->data());
 
-        uint32_t net_len = htonl(static_cast<uint32_t>(sizeof(nonce) + ciphertext_len));
+        uint32_t net_len = htonl(static_cast<uint32_t>(nonce.size() + ciphertext_len));
 
         iovec iov[3];
         iov[0].iov_base = &net_len;
         iov[0].iov_len  = sizeof(net_len);
-        iov[1].iov_base = nonce;
-        iov[1].iov_len  = sizeof(nonce);
-        iov[2].iov_base = ciphertext;
+        iov[1].iov_base = nonce.data();
+        iov[1].iov_len  = nonce.size();
+        iov[2].iov_base = ciphertext.data();
         iov[2].iov_len  = ciphertext_len;
 
         msghdr msg{};

@@ -22,7 +22,7 @@ services:
     <<: *peer
     hostname: peer1
     ports:
-      - "5001:5000/udp"
+      - "5000:5000/udp"
 
   peer2:
     <<: *peer

@@ -77,25 +77,19 @@ void add_tap(vswitch::VirtualSwitch& sw, const std::string& name) {
 void add_udp_peer(vswitch::VirtualSwitch& sw, const std::string& peer_str,
                   const std::string& stun_host, uint16_t stun_port, bool& stun_done) {
     auto cfg = parse_udp_peer(peer_str);
+    if (!stun_done && !stun_host.empty()) {
+        std::cout << "Probing for stable port using STUN server " << stun_host << ":" << stun_port << "...\n";
+        stun_done = true;
+        uint16_t stable_port = vswitch::StunClient::probe_stable_port(stun_host, stun_port, cfg.local_port);
+        cfg.local_port = stable_port;
+    }
+    
     std::string name = "udp_" + cfg.remote_ip + ":" + std::to_string(cfg.remote_port);
-
     auto udp = std::make_unique<vswitch::UdpPort>(name, cfg.local_ip, cfg.local_port,
                                                         cfg.remote_ip, cfg.remote_port);
     std::cout << "Created UDP port: " << udp->get_name()
               << " (local=" << cfg.local_ip << ":" << cfg.local_port
               << ", remote=" << cfg.remote_ip << ":" << cfg.remote_port << ")\n";
-
-    if (!stun_done && !stun_host.empty()) {
-        try {
-            vswitch::StunClient stun(stun_host, stun_port, udp->get_fd());
-            auto addr = stun.get_public_address();
-            std::cout << "\nYour public address: " << addr.ip << ":" << addr.port
-                      << "  <-- share this with your peer\n\n";
-        } catch (const std::exception& e) {
-            std::cerr << "STUN failed: " << e.what() << "\n";
-        }
-        stun_done = true;
-    }
 
     std::cout << "Punching NAT hole to " << cfg.remote_ip << ":" << cfg.remote_port << "...\n";
     udp->punch();

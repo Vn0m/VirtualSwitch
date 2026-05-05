@@ -1,6 +1,7 @@
 #include "network/stun_client.hpp"
 
 #include <arpa/inet.h>
+#include <iostream>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -156,6 +157,45 @@ StunAddress StunClient::get_public_address() {
     }
 
     throw std::runtime_error("No mapped address in STUN response");
+}
+
+uint16_t StunClient::probe_stable_port(const std::string& stun_host, uint16_t stun_port, uint16_t start_port, size_t max_attempts) {
+    for(size_t i = 0; i < max_attempts; ++i) {
+        int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (fd < 0) {
+            throw std::runtime_error("Failed to create socket for port probing");
+        }
+
+        uint16_t test_port = start_port + static_cast<uint16_t>(i);
+        sockaddr_in local_addr{};
+        local_addr.sin_family = AF_INET;
+        local_addr.sin_port = htons(test_port);
+        local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+        if (::bind(fd, reinterpret_cast<sockaddr*>(&local_addr), sizeof(local_addr)) < 0) {
+            ::close(fd);
+            continue;
+        }
+
+        StunAddress addr;
+        try {
+            StunClient client(stun_host, stun_port, fd);
+            addr = client.get_public_address();
+        } catch (const std::exception&) {
+            ::close(fd);
+            continue;
+        }
+        ::close(fd);
+
+        if (addr.port == test_port) {
+            std::cout << "Your public address: " << addr.ip << ":" << addr.port
+                      << "  <-- share this with your peer\n\n";
+            return test_port;
+        }
+        std::cout << "Port " << test_port << " -> external " << addr.port << ", trying next...\n";
+    }
+
+    throw std::runtime_error("Failed to find stable port after " + std::to_string(max_attempts) + " attempts");
 }
 
 } // namespace vswitch

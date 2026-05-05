@@ -65,10 +65,15 @@ void VirtualSwitch::run() {
     }
 
     while (true) {
-        int ret = poll(poll_fds.data(), poll_fds.size(), -1);
+        int ret = poll(poll_fds.data(), poll_fds.size(), 2500);
         if (ret < 0) {
             perror("poll");
             break;
+        }
+        if (ret == 0) {
+            for (const auto& port : ports_)
+                port->keepalive();
+            continue;
         }
 
         for (size_t i = 0; i < poll_fds.size(); ++i) {

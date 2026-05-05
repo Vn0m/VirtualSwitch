@@ -30,6 +30,7 @@ public:
     ssize_t write(const uint8_t* buffer, size_t size) override;
 
     void punch(int attempts = 10);
+    void keepalive() override;
 
 private:
     int fd_;

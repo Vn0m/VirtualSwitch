@@ -63,9 +63,10 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
         return bytes;
     }
 
-    if (src_addr.sin_addr.s_addr != remote_addr_.sin_addr.s_addr ||
-        src_addr.sin_port != remote_addr_.sin_port) {
+    if (src_addr.sin_addr.s_addr != remote_addr_.sin_addr.s_addr) {
         return 0;
+    } else if (src_addr.sin_port != remote_addr_.sin_port) {
+        remote_addr_.sin_port = src_addr.sin_port;
     }
 
     if (bytes < static_cast<ssize_t>(sizeof(uint32_t))) {
@@ -168,6 +169,8 @@ ssize_t UdpPort::write(const uint8_t* buffer, size_t size) {
 
     return ::sendmsg(fd_, &msg, 0);
 }
+
+void UdpPort::keepalive() { punch(1); }
 
 void UdpPort::punch(int attempts) {
     const uint8_t punch_packet[4] = {0, 0, 0, 0};

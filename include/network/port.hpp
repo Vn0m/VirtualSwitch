@@ -15,6 +15,7 @@ public:
     virtual int get_fd() const = 0;
     virtual ssize_t read(uint8_t* buffer, size_t size) = 0;
     virtual ssize_t write(const uint8_t* buffer, size_t size) = 0;
+    virtual void keepalive() {}
 };
 
 } // namespace vswitch

@@ -8,7 +8,6 @@ x-peer: &peer
     - NET_RAW
   devices:
     - /dev/net/tun:/dev/net/tun
-  network_mode: host
   environment:
     - DISPLAY=${DISPLAY:-host.orbstack.internal:0}
   volumes:
@@ -21,9 +20,15 @@ x-peer: &peer
 services:
   peer1:
     <<: *peer
+    hostname: peer1
+    ports:
+      - "5000:5000/udp"
 
   peer2:
     <<: *peer
+    hostname: peer2
+    ports:
+      - "5002:5000/udp"
 
 volumes:
   terraria_saves:

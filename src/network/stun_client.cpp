@@ -195,7 +195,8 @@ uint16_t StunClient::probe_stable_port(const std::string& stun_host, uint16_t st
         std::cout << "Port " << test_port << " -> external " << addr.port << ", trying next...\n";
     }
 
-    throw std::runtime_error("Failed to find stable port after " + std::to_string(max_attempts) + " attempts");
+    std::cerr << "Warning: symmetric NAT detected, hole punching may still work if peer has cone NAT\n";
+    return start_port;
 }
 
 } // namespace vswitch

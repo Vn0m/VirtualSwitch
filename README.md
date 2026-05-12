@@ -14,20 +14,24 @@
 
 ---
 
-Play Minecraft, Valheim, or any LAN game with friends across the internet without subscriptions or port forwarding. VirtualSwitch makes your computers appear on the same local network.
+Play Terraria, Minecraft, Valheim, or any LAN game with friends across the internet without subscriptions or port forwarding. VirtualSwitch makes your computers appear on the same local network.
 
 ## Features
 
 - LAN Gaming Over Internet - Play peer-to-peer without dedicated servers
 - UDP Tunneling - Transparent frame forwarding across internet
+- NAT Hole Punching - Automatic port probing finds a stable external port through your router
+- Keep-Alive Punches - Periodic packets keep NAT mappings alive so connections don't drop
+- Port Learning - Adapts to peers whose NAT remaps ports mid-connection
 - MAC Learning - Automatic MAC address table with 300s TTL aging
 - Broadcast/Multicast - ARP and game discovery frames correctly flooded to all peers
-- Peer Validation - Frames from unknown sources are dropped
 - Efficient - Poll-based event loop, zero per-frame heap allocations
 - Multi-port - Support unlimited local TAPs and UDP peers
-- No Setup - Works same machine, LAN, or internet
+- Cross-platform - Runs natively on Linux, or on macOS/Windows via Docker
 
 ## Build
+
+### Linux (native)
 
 ```bash
 mkdir -p build && cd build
@@ -36,30 +40,52 @@ make
 sudo ./vswitch --help
 ```
 
-Requirements: Linux, C++17, CMake 3.15+
+Requirements: C++17, CMake 3.15+, libsodium
+
+### macOS / Windows (Docker)
+
+```bash
+docker compose build
+docker compose run --rm peer1 bash
+# inside container:
+cmake -B build && cmake --build build
+```
+
+Requirements: Docker, OrbStack (macOS) or Docker Desktop
 
 ## Quick Start
 
-**Computer A** — run this, it will print your public IP:port:
-```bash
-sudo ./vswitch --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:B_IP:5000
-sudo ip addr add 10.0.0.1/24 dev tap0
-sudo ip link set tap0 up
-```
-Output: `Your public address: 203.0.113.5:5000  <-- share this with your peer`
+Both peers need each other's public IP. Run `curl ifconfig.me` to get yours and share it.
 
-**Computer B** — replace `A_IP` with what A printed:
+**Peer B runs first:**
 ```bash
-sudo ./vswitch --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:A_IP:5000
-sudo ip addr add 10.0.0.2/24 dev tap0
-sudo ip link set tap0 up
+ip tuntap add dev tap0 mode tap
+ip addr add 10.0.0.2/24 dev tap0
+ip link set tap0 up
+./build/vswitch --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:A_PUBLIC_IP:5000
 ```
+
+**Then Peer A runs:**
+```bash
+ip tuntap add dev tap0 mode tap
+ip addr add 10.0.0.1/24 dev tap0
+ip link set tap0 up
+./build/vswitch --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:B_PUBLIC_IP:5000
+```
+
+The switch probes ports automatically and prints your stable public address:
+```
+Port 5000 -> external 5001, trying next...
+Your public address: 1.2.3.4:5002  <-- share this with your peer
+```
+
+If your NAT remaps ports (symmetric NAT, common on university/corporate networks), the switch warns you and falls back to direct connection which still works if the other peer has a regular home router.
 
 **With encryption** — generate a key and pass it to both peers:
 ```bash
 cat /dev/urandom | head -c 32 | xxd -p -c 32
-
 sudo ip link set tap0 mtu 1414
+./build/vswitch --local tap0 --key <hex_key> --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:PEER_IP:5000
 ```
 
 **Test:**
@@ -67,7 +93,7 @@ sudo ip link set tap0 mtu 1414
 ping 10.0.0.2
 ```
 
-Then start Minecraft on both machines - server appears in LAN list automatically.
+Then start your game and connect via direct IP (`10.0.0.1` / `10.0.0.2`). On Linux the TAP is native so LAN discovery works automatically. On macOS via Docker, use direct IP join.
 
 ## Architecture
 

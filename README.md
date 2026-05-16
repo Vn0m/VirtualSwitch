@@ -79,7 +79,7 @@ Port 5000 -> external 5001, trying next...
 Your public address: 1.2.3.4:5002  <-- share this with your peer
 ```
 
-If your NAT remaps ports (symmetric NAT, common on university/corporate networks), the switch warns you and falls back to direct connection which still works if the other peer has a regular home router.
+If your NAT remaps ports (symmetric NAT), the switch warns you and continues, this still works if the other peer has a regular home router. Note: some university and corporate networks block outbound UDP entirely, which prevents direct hole punching regardless of NAT type. In those cases use a VPN like Tailscale.
 
 **With encryption** — generate a key and pass it to both peers:
 ```bash

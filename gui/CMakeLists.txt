@@ -1,5 +1,9 @@
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
+include(FetchContent)
+FetchContent_Declare(Qlementine GIT_REPOSITORY "https://github.com/oclero/qlementine.git" GIT_TAG master)
+FetchContent_MakeAvailable(Qlementine)
+
 set(CMAKE_AUTOMOC ON)
 
 add_executable(allblue MACOSX_BUNDLE
@@ -12,4 +16,4 @@ add_executable(allblue MACOSX_BUNDLE
     src/tray_icon.cpp
 )
 
-target_link_libraries(allblue PRIVATE Qt6::Core Qt6::Widgets)
+target_link_libraries(allblue PRIVATE Qt6::Core Qt6::Widgets qlementine)

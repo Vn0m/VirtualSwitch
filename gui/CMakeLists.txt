@@ -17,3 +17,8 @@ add_executable(allblue MACOSX_BUNDLE
 )
 
 target_link_libraries(allblue PRIVATE Qt6::Core Qt6::Widgets qlementine)
+
+qt_add_resources(allblue "resources"
+    PREFIX "/"
+    FILES resources/theme.json
+)

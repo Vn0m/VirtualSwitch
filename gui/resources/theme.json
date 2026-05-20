@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "author": "Juan Apolo",
+    "name": "AllBlue",
+    "version": "1.0.0"
+  },
+  "backgroundColorMain1": "#ffffff",
+  "backgroundColorMain2": "#ffffff",
+  "primaryColor": "#243a4c",
+  "primaryColorHovered": "#2e4a5e",
+  "primaryColorPressed": "#182c3c",
+  "primaryColorDisabled": "#8aa0ae",
+  "focusColor": "#243a4c88",
+  "fontSize": 14,
+  "primaryColorForeground": "#ffffff",
+  "primaryColorForegroundHovered": "#ffffff",
+  "primaryColorForegroundPressed": "#ffffff"
+}

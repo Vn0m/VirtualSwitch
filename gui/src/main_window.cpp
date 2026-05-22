@@ -18,6 +18,19 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("AllBlue");
     resize(490, 480);
 
+    controller_ = new SwitchController(this);
+
+    connect(controller_, &SwitchController::publicAddressDiscovered, this, [this](const QString& addr) {
+        own_address_->setText(addr);
+        spinner_->setVisible(false);
+        status_dot_->setStyleSheet("color: #4caf50; font-size: 9px;");
+    });
+
+    connect(controller_, &SwitchController::outputReceived, this, [this](const QString& line) {
+        for (auto* log : peer_logs_)
+            log->append(line);
+    });
+
     auto* central = new QWidget(this);
     setCentralWidget(central);
 
@@ -54,10 +67,21 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     root->addLayout(addr_row);
     root->addSpacing(4);
 
-    auto* addr_hint = new oclero::qlementine::Label("your address · share with peers", this);
+    auto* addr_hint = new oclero::qlementine::Label("public address · share with peers", this);
     addr_hint->setRole(oclero::qlementine::TextRole::Caption);
     addr_hint->setStyleSheet("font-size: 13px;");
     root->addWidget(addr_hint);
+    root->addSpacing(10);
+
+    tap_address_ = new QLabel(controller_->tapIp(), this);
+    tap_address_->setStyleSheet("font-family: monospace; font-size: 17px; font-weight: 500;");
+    root->addWidget(tap_address_);
+    root->addSpacing(4);
+
+    auto* tap_hint = new oclero::qlementine::Label("virtual address · tell your friend to ping this", this);
+    tap_hint->setRole(oclero::qlementine::TextRole::Caption);
+    tap_hint->setStyleSheet("font-size: 13px;");
+    root->addWidget(tap_hint);
     root->addSpacing(16);
     root->addWidget(make_separator(central));
     root->addSpacing(14);
@@ -195,6 +219,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
         peer_input_->clear();
         add_row_->setVisible(false);
         updateStatus();
+
+        spinner_->setVisible(true);
+        status_dot_->setStyleSheet("color: #b0b8c8; font-size: 9px;");
+        own_address_->setText("—");
+        controller_->start(QStringList(peer_addresses_.begin(), peer_addresses_.end()));
     });
 
     connect(copy_btn_, &QPushButton::clicked, this, [this]() {

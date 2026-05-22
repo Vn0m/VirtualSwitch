@@ -12,6 +12,7 @@
 #include <oclero/qlementine/widgets/LineEdit.hpp>
 #include <oclero/qlementine/widgets/Label.hpp>
 #include <oclero/qlementine/widgets/SegmentedControl.hpp>
+#include "switch_controller.hpp"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -27,6 +28,7 @@ private:
     QLabel* status_label_;
     oclero::qlementine::LoadingSpinner* spinner_;
     QLabel* own_address_;
+    QLabel* tap_address_;
     QPushButton* copy_btn_;
     QWidget* add_row_;
     oclero::qlementine::LineEdit* peer_input_;
@@ -38,6 +40,8 @@ private:
 
     QMap<QString, QTextEdit*> peer_logs_;
     QStackedWidget* log_stack_;
+
+    SwitchController* controller_;
 
     void updateStatus();
 };

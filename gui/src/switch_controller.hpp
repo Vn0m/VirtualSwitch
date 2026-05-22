@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 
 class SwitchController : public QObject {
     Q_OBJECT
@@ -9,14 +10,20 @@ class SwitchController : public QObject {
 public:
     explicit SwitchController(QObject* parent = nullptr);
 
+    QString tapIp() const;
+
 public slots:
-    void start(const QString& peerAddress);
+    void start(const QStringList& peers);
     void stop();
 
 signals:
-    void statusChanged(const QString& status);
+    void publicAddressDiscovered(const QString& addr);
     void outputReceived(const QString& line);
 
 private:
     QProcess* process_;
+    QString tap_ip_;
+
+    void onReadyRead();
+    QString initTapIp();
 };

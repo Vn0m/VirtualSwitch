@@ -23,6 +23,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsodium23 \
     iproute2 \
+    openvpn \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/build/vswitch /usr/local/bin/vswitch

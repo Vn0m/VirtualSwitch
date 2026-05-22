@@ -8,6 +8,8 @@
 #include <QClipboard>
 #include <QRegularExpression>
 #include <QPixmap>
+#include <QDesktopServices>
+#include <QUrl>
 
 static QFrame* make_separator(QWidget* parent) {
     auto* sep = new QFrame(parent);
@@ -17,7 +19,7 @@ static QFrame* make_separator(QWidget* parent) {
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("AllBlue");
-    resize(480, 500);
+    resize(470, 510);
 
     controller_ = new SwitchController(this);
 
@@ -30,6 +32,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(controller_, &SwitchController::outputReceived, this, [this](const QString& line) {
         for (auto* log : peer_logs_)
             log->append(line);
+    });
+
+    connect(controller_, &SwitchController::ovpnConfigReady, this, [this](const QString& path) {
+        tunnelblick_btn_->setVisible(true);
+        tunnelblick_btn_->setProperty("ovpnPath", path);
     });
 
     auto* central = new QWidget(this);
@@ -47,7 +54,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     spinner_->setVisible(false);
 
     auto* logo = new QLabel(this);
-    logo->setPixmap(QPixmap(":/resources/allbluelogo.png").scaled(60, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    logo->setPixmap(QPixmap(":/resources/allbluelogo.png").scaled(50, 50, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 
     auto* status_row = new QHBoxLayout();
     status_row->setSpacing(6);
@@ -80,10 +87,31 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     tap_address_ = new QLabel(controller_->tapIp(), this);
     tap_address_->setStyleSheet("font-family: monospace; font-size: 17px; font-weight: 500;");
-    root->addWidget(tap_address_);
+
+#if defined(Q_OS_MAC)
+    const QString vpn_client = "Tunnelblick";
+    const QString tap_hint_text = "virtual address · connect via Tunnelblick to use on this Mac";
+#elif defined(Q_OS_WIN)
+    const QString vpn_client = "OpenVPN Connect";
+    const QString tap_hint_text = "virtual address · connect via OpenVPN Connect to use on this PC";
+#else
+    const QString vpn_client = "OpenVPN";
+    const QString tap_hint_text = "virtual address · connect via OpenVPN to use on this machine";
+#endif
+
+    tunnelblick_btn_ = new QPushButton("Open in " + vpn_client, this);
+    tunnelblick_btn_->setStyleSheet("font-size: 12px;");
+    tunnelblick_btn_->setVisible(false);
+
+    auto* tap_row = new QHBoxLayout();
+    tap_row->setSpacing(10);
+    tap_row->addWidget(tap_address_);
+    tap_row->addStretch();
+    tap_row->addWidget(tunnelblick_btn_);
+    root->addLayout(tap_row);
     root->addSpacing(4);
 
-    auto* tap_hint = new oclero::qlementine::Label("virtual address · tell your friend to ping this", this);
+    auto* tap_hint = new oclero::qlementine::Label(tap_hint_text, this);
     tap_hint->setRole(oclero::qlementine::TextRole::Caption);
     tap_hint->setStyleSheet("font-size: 13px;");
     root->addWidget(tap_hint);
@@ -172,8 +200,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     connect(add_btn, &QPushButton::clicked, this, [this]() {
         add_row_->setVisible(!add_row_->isVisible());
-        if (add_row_->isVisible())
+        if (add_row_->isVisible()) {
             peer_input_->setFocus();
+        }
     });
 
     connect(peer_input_, &QLineEdit::returnPressed, this, [this]() {
@@ -233,6 +262,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     connect(copy_btn_, &QPushButton::clicked, this, [this]() {
         QApplication::clipboard()->setText(own_address_->text());
+    });
+
+    connect(tunnelblick_btn_, &QPushButton::clicked, this, [this]() {
+        const QString path = tunnelblick_btn_->property("ovpnPath").toString();
+        QDesktopServices::openUrl(QUrl::fromLocalFile(path));
     });
 }
 

@@ -30,6 +30,7 @@ private:
     QLabel* own_address_;
     QLabel* tap_address_;
     QPushButton* copy_btn_;
+    QPushButton* tunnelblick_btn_;
     QWidget* add_row_;
     oclero::qlementine::LineEdit* peer_input_;
     QStackedWidget* peer_stack_;

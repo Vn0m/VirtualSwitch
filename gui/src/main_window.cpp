@@ -7,6 +7,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QRegularExpression>
+#include <QPixmap>
 
 static QFrame* make_separator(QWidget* parent) {
     auto* sep = new QFrame(parent);
@@ -16,7 +17,7 @@ static QFrame* make_separator(QWidget* parent) {
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setWindowTitle("AllBlue");
-    resize(490, 480);
+    resize(480, 500);
 
     controller_ = new SwitchController(this);
 
@@ -45,12 +46,16 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     spinner_ = new oclero::qlementine::LoadingSpinner(this);
     spinner_->setVisible(false);
 
+    auto* logo = new QLabel(this);
+    logo->setPixmap(QPixmap(":/resources/allbluelogo.png").scaled(60, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
     auto* status_row = new QHBoxLayout();
     status_row->setSpacing(6);
     status_row->addWidget(status_dot_);
     status_row->addWidget(status_label_);
     status_row->addStretch();
     status_row->addWidget(spinner_);
+    status_row->addWidget(logo);
     root->addLayout(status_row);
     root->addSpacing(10);
 

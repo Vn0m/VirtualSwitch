@@ -1,20 +1,26 @@
 <div align="center">
 
-# VirtualSwitch
+<img src="allbluelogo.png" alt="AllBlue logo" width="120" />
+
+# AllBlue
 
 **Layer 2 virtual switch with UDP tunneling for LAN gaming over the internet**
 
 ![C++](https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)
 ![Shell](https://img.shields.io/badge/Shell-121011?style=for-the-badge&logo=gnu-bash&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![UDP](https://img.shields.io/badge/UDP-010101?style=for-the-badge&logo=protocol&logoColor=white)
-![TAP](https://img.shields.io/badge/TAP%20Devices-000000?style=for-the-badge)
+![Qt](https://img.shields.io/badge/Qt-41CD52?style=for-the-badge&logo=qt&logoColor=white)
+
+![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)
 
 </div>
 
 ---
 
-Play Terraria, Minecraft, Valheim, or any LAN game with friends across the internet without subscriptions or port forwarding. VirtualSwitch makes your computers appear on the same local network.
+Play Terraria, Minecraft, Valheim, or any LAN game with friends across the internet without subscriptions or port forwarding. AllBlue makes your computers appear on the same local network.
 
 ## Features
 
@@ -101,7 +107,7 @@ Then start your game and connect via direct IP (`10.0.0.1` / `10.0.0.2`). On Lin
 
 **Frame Flow:**
 1. App sends packet → TAP device
-2. VirtualSwitch reads frame, learns source MAC
+2. The switch reads frame, learns source MAC
 3. Broadcast/multicast → flood to all peers. Unicast → MAC table lookup
 4. Known destination → forward directly. Unknown → flood to all peers
 5. UDP peers: frame is encapsulated and sent over internet

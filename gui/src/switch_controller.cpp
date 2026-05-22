@@ -100,7 +100,7 @@ void SwitchController::buildOvpnConfig() {
     QString config =
         "dev tap\n"
         "proto udp\n"
-        "remote " + public_ip_ + " 1194\n"
+        "remote 127.0.0.1 1194\n"
         "ifconfig " + tap_ip_ + " 255.255.255.0\n"
         "route-nopull\n"
         "<secret>\n" +

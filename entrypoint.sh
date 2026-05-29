@@ -35,6 +35,7 @@ chmod +x /tmp/vpn_up.sh
 
 ip tuntap add tap0 mode tap
 ip link set tap0 up
+echo 1 > /proc/sys/net/ipv4/ip_forward
 echo 1 > /proc/sys/net/ipv4/conf/tap0/proxy_arp
 
 openvpn --config /tmp/server.conf --script-security 2 --up /tmp/vpn_up.sh &

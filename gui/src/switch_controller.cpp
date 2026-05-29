@@ -38,10 +38,8 @@ void SwitchController::start(const QStringList& peers) {
 
     QStringList args = {
         "run", "--rm", "--name", "allblue-node",
-        "--cap-add", "NET_ADMIN",
-        "--cap-add", "SYS_ADMIN",
+        "--privileged",
         "--device", "/dev/net/tun",
-        "--sysctl", "net.ipv4.ip_forward=1",
         "-e", "TAP_IP=" + tap_ip_,
         "-e", "PEERS=" + peers.join(","),
         "-p", "5000:5000/udp",

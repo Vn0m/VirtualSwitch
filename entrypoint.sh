@@ -24,6 +24,8 @@ proto udp
 port 1194
 secret /tmp/static.key
 ifconfig 10.255.0.1 $TAP_IP
+cipher AES-256-CBC
+auth SHA256
 verb 3
 EOF
 

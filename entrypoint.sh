@@ -26,6 +26,9 @@ secret /tmp/static.key
 ifconfig 10.255.0.1 $TAP_IP
 cipher AES-256-CBC
 auth SHA256
+replay-persist /tmp/replay.db
+mute-replay-warnings
+replay-window 0
 verb 3
 EOF
 
@@ -40,6 +43,8 @@ ip addr add 10.0.0.1/24 dev tap0
 ip link set tap0 up
 echo 1 > /proc/sys/net/ipv4/ip_forward
 echo 1 > /proc/sys/net/ipv4/conf/tap0/proxy_arp
+echo 1 > /proc/sys/net/ipv4/conf/tap0/arp_accept
+echo 1 > /proc/sys/net/ipv4/conf/all/arp_accept
 
 openvpn --config /tmp/server.conf --script-security 2 --up /tmp/vpn_up.sh &
 
@@ -53,5 +58,10 @@ IFS=',' read -ra PEER_LIST <<< "$PEERS"
 for peer in "${PEER_LIST[@]}"; do
     UDP_ARGS="$UDP_ARGS --udp 0.0.0.0:${PORT}:${peer}"
 done
+
+while true; do
+    arping -A -I tap0 -c 1 -q "$TAP_IP" 2>/dev/null || true
+    sleep 5
+done &
 
 exec vswitch --local tap0 --stun stun.l.google.com:19302 $UDP_ARGS

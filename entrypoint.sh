@@ -30,12 +30,18 @@ EOF
 
 openvpn --config /tmp/server.conf &
 
-for i in $(seq 1 10); do
+for i in $(seq 1 15); do
     ip link show tap_vpn > /dev/null 2>&1 && break
     sleep 1
 done
 
+ip tuntap add tap0 mode tap
 ip link set tap_vpn up
+ip link set tap0 up
+ip link add name br0 type bridge
+ip link set tap_vpn master br0
+ip link set tap0 master br0
+ip link set br0 up
 
 UDP_ARGS=""
 IFS=',' read -ra PEER_LIST <<< "$PEERS"
@@ -43,4 +49,4 @@ for peer in "${PEER_LIST[@]}"; do
     UDP_ARGS="$UDP_ARGS --udp 0.0.0.0:${PORT}:${peer}"
 done
 
-exec vswitch --local tap_vpn --stun stun.l.google.com:19302 $UDP_ARGS
+exec vswitch --local tap0 --stun stun.l.google.com:19302 $UDP_ARGS

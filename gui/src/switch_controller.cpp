@@ -101,6 +101,7 @@ void SwitchController::buildOvpnConfig() {
         "dev tun\n"
         "proto udp\n"
         "remote 127.0.0.1 1194\n"
+        "lport 0\n"
         "ifconfig " + tap_ip_ + " 10.255.0.1\n"
         "route 10.0.0.0 255.255.255.0\n"
         "cipher AES-256-CBC\n"

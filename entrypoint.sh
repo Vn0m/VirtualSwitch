@@ -36,6 +36,7 @@ SCRIPT
 chmod +x /tmp/vpn_up.sh
 
 ip tuntap add tap0 mode tap
+ip addr add 10.0.0.1/24 dev tap0
 ip link set tap0 up
 echo 1 > /proc/sys/net/ipv4/ip_forward
 echo 1 > /proc/sys/net/ipv4/conf/tap0/proxy_arp

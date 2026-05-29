@@ -98,11 +98,11 @@ void SwitchController::buildOvpnConfig() {
     QString key = QString::fromUtf8(keyBytes);
 
     QString config =
-        "dev tap\n"
+        "dev tun\n"
         "proto udp\n"
         "remote 127.0.0.1 1194\n"
-        "ifconfig " + tap_ip_ + " 255.255.255.0\n"
-        "route-nopull\n"
+        "ifconfig " + tap_ip_ + " 10.255.0.1\n"
+        "route 10.0.0.0 255.255.255.0\n"
         "<secret>\n" +
         key +
         "</secret>\n";

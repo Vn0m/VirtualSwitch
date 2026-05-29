@@ -19,29 +19,31 @@ else
 fi
 
 cat > /tmp/server.conf << EOF
-dev tap_vpn
-dev-type tap
+dev tun0
 proto udp
 port 1194
 secret /tmp/static.key
-keepalive 10 60
+ifconfig 10.255.0.1 $TAP_IP
 verb 3
 EOF
 
-openvpn --config /tmp/server.conf &
-
-for i in $(seq 1 15); do
-    ip link show tap_vpn > /dev/null 2>&1 && break
-    sleep 1
-done
+cat > /tmp/vpn_up.sh << 'SCRIPT'
+#!/bin/bash
+ip route add 10.0.0.0/24 dev tap0 2>/dev/null || true
+SCRIPT
+chmod +x /tmp/vpn_up.sh
 
 ip tuntap add tap0 mode tap
-ip link set tap_vpn up
 ip link set tap0 up
-ip link add name br0 type bridge
-ip link set tap_vpn master br0
-ip link set tap0 master br0
-ip link set br0 up
+echo 1 > /proc/sys/net/ipv4/ip_forward
+echo 1 > /proc/sys/net/ipv4/conf/tap0/proxy_arp
+
+openvpn --config /tmp/server.conf --script-security 2 --up /tmp/vpn_up.sh &
+
+for i in $(seq 1 15); do
+    ip link show tun0 > /dev/null 2>&1 && break
+    sleep 1
+done
 
 UDP_ARGS=""
 IFS=',' read -ra PEER_LIST <<< "$PEERS"

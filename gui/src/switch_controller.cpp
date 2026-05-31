@@ -106,8 +106,7 @@ void SwitchController::buildOvpnConfig() {
         "route 10.0.0.0 255.255.255.0\n"
         "cipher AES-256-CBC\n"
         "auth SHA256\n"
-        "replay-window 0\n"
-        "mute-replay-warnings\n"
+        "no-replay\n"
         "<secret>\n" +
         key +
         "</secret>\n";

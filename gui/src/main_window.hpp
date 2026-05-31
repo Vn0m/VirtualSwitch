@@ -8,6 +8,7 @@
 #include <QSet>
 #include <QMap>
 #include <QString>
+#include <QCloseEvent>
 #include <oclero/qlementine/widgets/LoadingSpinner.hpp>
 #include <oclero/qlementine/widgets/LineEdit.hpp>
 #include <oclero/qlementine/widgets/Label.hpp>
@@ -19,6 +20,9 @@ class MainWindow : public QMainWindow {
 
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+
+protected:
+    void closeEvent(QCloseEvent* event) override;
 
 private:
     oclero::qlementine::SegmentedControl* tabs_;

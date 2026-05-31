@@ -270,6 +270,11 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     });
 }
 
+void MainWindow::closeEvent(QCloseEvent* event) {
+    controller_->stop();
+    event->accept();
+}
+
 void MainWindow::updateStatus() {
     const int total = peer_addresses_.size();
     if (total == 0) {

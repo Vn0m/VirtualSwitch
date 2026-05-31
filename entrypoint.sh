@@ -59,9 +59,24 @@ for peer in "${PEER_LIST[@]}"; do
     UDP_ARGS="$UDP_ARGS --udp 0.0.0.0:${PORT}:${peer}"
 done
 
-while true; do
-    arping -A -I tap0 -c 1 -q "$TAP_IP" 2>/dev/null || true
-    sleep 5
-done &
+python3 - "$TAP_IP" << 'PYEOF' &
+import socket, struct, time, sys
+IP = sys.argv[1]
+IFACE = 'tap0'
+def send():
+    with open(f'/sys/class/net/{IFACE}/address') as f:
+        mac = bytes.fromhex(f.read().strip().replace(':', ''))
+    ip_b = socket.inet_aton(IP)
+    arp = struct.pack('!HHBBH', 1, 0x0800, 6, 4, 2) + mac + ip_b + b'\xff\xff\xff\xff\xff\xff' + ip_b
+    eth = b'\xff\xff\xff\xff\xff\xff' + mac + b'\x08\x06' + arp
+    s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
+    s.bind((IFACE, 0))
+    s.send(eth)
+    s.close()
+while True:
+    try: send()
+    except: pass
+    time.sleep(5)
+PYEOF
 
 exec vswitch --local tap0 --stun stun.l.google.com:19302 $UDP_ARGS

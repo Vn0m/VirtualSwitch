@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     openvpn \
     iputils-ping \
-    iputils-arping \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/build/vswitch /usr/local/bin/vswitch

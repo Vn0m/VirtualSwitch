@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ubuntu:22.04 AS builder
+FROM ubuntu:22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -16,13 +16,16 @@ COPY include/ include/
 
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
-FROM --platform=linux/amd64 ubuntu:22.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsodium23 \
     iproute2 \
+    openvpn \
+    iputils-ping \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/build/vswitch /usr/local/bin/vswitch

@@ -8,6 +8,7 @@
 #include <QSet>
 #include <QMap>
 #include <QString>
+#include <QCloseEvent>
 #include <oclero/qlementine/widgets/LoadingSpinner.hpp>
 #include <oclero/qlementine/widgets/LineEdit.hpp>
 #include <oclero/qlementine/widgets/Label.hpp>
@@ -20,6 +21,9 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
 
+protected:
+    void closeEvent(QCloseEvent* event) override;
+
 private:
     oclero::qlementine::SegmentedControl* tabs_;
     QStackedWidget* pages_;
@@ -30,6 +34,7 @@ private:
     QLabel* own_address_;
     QLabel* tap_address_;
     QPushButton* copy_btn_;
+    QPushButton* tunnelblick_btn_;
     QWidget* add_row_;
     oclero::qlementine::LineEdit* peer_input_;
     QStackedWidget* peer_stack_;

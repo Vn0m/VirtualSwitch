@@ -98,6 +98,8 @@ void add_udp_peer(vswitch::VirtualSwitch& sw, const std::string& peer_str,
 }
 
 int main(int argc, char* argv[]) {
+    std::cout << std::unitbuf;
+
     try {
         auto args = parse_args(argc, argv);
 

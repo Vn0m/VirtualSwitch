@@ -2,12 +2,15 @@
 #include <string>
 #include <stdexcept>
 #include <cstring>
+#include <cstdint>
+#include <cstdio>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/sys_domain.h>
 #include <sys/kern_control.h>
 #include <sys/ioctl.h>
 #include <net/if_utun.h>
+#include <arpa/inet.h>
 
 class UtunDevice {
 public:
@@ -67,7 +70,39 @@ int main() {
         UtunDevice tun;
         std::cout << "opened tunnel: " << tun.name() << "  (fd=" << tun.fd() << ")\n";
 
-        for (;;) ::pause();
+        uint8_t buff[2048];
+        for(;;) {
+            ssize_t n = ::read(tun.fd(), buff, sizeof(buff));
+            if (n < 0) {
+                perror("read: ");
+                break;
+            }
+            if (n < 4) {
+                continue;
+            }
+
+            uint32_t family_be;
+            std::memcpy(&family_be, buff, 4);
+            uint32_t family = ntohl(family_be);
+
+            const uint8_t* pkt = buff + 4;
+            ssize_t pkt_len = n - 4;
+            std::cout << "read " << n << " bytes " << "(family=" << family << ", packet=" << pkt_len << ")";
+
+            if (family == AF_INET && pkt_len >= 20) {
+                uint8_t version = pkt[0] >> 4;
+                uint8_t protocol = pkt[9];
+                const uint8_t* src = pkt + 12;
+                const uint8_t* dst = pkt + 16;
+
+                char s[16], d[16];
+                std::snprintf(s, sizeof(s), "%u.%u.%u.%u", src[0], src[1], src[2], src[3]);
+                std::snprintf(d, sizeof(d), "%u.%u.%u.%u", dst[0], dst[1], dst[2], dst[3]);
+
+                std::cout << "  IPv" << int(version) << " " << s << " -> " << d << " proto=" << int(protocol);
+            }
+            std::cout << "\n";
+        }
     } catch(const std::exception& e) {
         std::cerr << "error: " << e.what() << "\n";
         return 1;

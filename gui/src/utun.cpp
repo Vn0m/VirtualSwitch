@@ -24,6 +24,7 @@ public:
         std::memset(&info, 0, sizeof(info));
         std::strncpy(info.ctl_name, UTUN_CONTROL_NAME, sizeof(info.ctl_name));
         if (::ioctl(fd_, CTLIOCGINFO, &info) < 0) {
+            ::close(fd_);
             throw std::runtime_error(std::string("ioctl: ") + std::strerror(errno));
         }
 
@@ -99,23 +100,41 @@ int main() {
             std::memcpy(&family_be, buff, 4);
             uint32_t family = ntohl(family_be);
 
-            const uint8_t* pkt = buff + 4;
+            uint8_t* pkt = buff + 4;
             ssize_t pkt_len = n - 4;
             std::cout << "read " << n << " bytes " << "(family=" << family << ", packet=" << pkt_len << ")";
 
             if (family == AF_INET && pkt_len >= 20) {
-                uint8_t version = pkt[0] >> 4;
+                //uint8_t version = pkt[0] >> 4;
+                size_t ihl = (pkt[0] & 0x0F) * 4;
                 uint8_t protocol = pkt[9];
-                const uint8_t* src = pkt + 12;
-                const uint8_t* dst = pkt + 16;
+                //const uint8_t* src = pkt + 12;
+                //const uint8_t* dst = pkt + 16;
+                uint8_t* icmp = pkt + ihl;
 
-                char s[16], d[16];
-                std::snprintf(s, sizeof(s), "%u.%u.%u.%u", src[0], src[1], src[2], src[3]);
-                std::snprintf(d, sizeof(d), "%u.%u.%u.%u", dst[0], dst[1], dst[2], dst[3]);
+                if (protocol == 1 && pkt_len >= (ssize_t)ihl + 8 && icmp[0] == 8) {
+                    uint8_t temp[4];
+                    std::memcpy(temp, pkt + 12, 4);
+                    std::memcpy(pkt + 12, pkt + 16, 4);
+                    std::memcpy(pkt + 16, temp, 4);
 
-                std::cout << "  IPv" << int(version) << " " << s << " -> " << d << " proto=" << int(protocol);
+                    icmp[0] = 0;
+
+                    size_t icmp_len = pkt_len - ihl;
+                    icmp[2] = 0; 
+                    icmp[3] = 0;
+                    uint16_t c = internet_checksum(icmp, icmp_len);
+                    icmp[2] = c >> 8;
+                    icmp[3] = c & 0xFF;
+
+                    if (::write(tun.fd(), buff, n) < 0) { 
+                        perror("write"); 
+                    } else {
+                        std::cout << "  -> replied\n";
+                    }
+                    continue;
+                }
             }
-            std::cout << "\n";
         }
     } catch(const std::exception& e) {
         std::cerr << "error: " << e.what() << "\n";

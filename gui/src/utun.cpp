@@ -11,6 +11,8 @@
 #include <sys/ioctl.h>
 #include <net/if_utun.h>
 #include <arpa/inet.h>
+#include <poll.h>
+#include <netinet/in.h>
 
 class UtunDevice {
 public:
@@ -66,76 +68,64 @@ private:
     std::string name_;
 };
 
-uint16_t internet_checksum(const uint8_t* data, size_t len) {
-    uint32_t sum = 0;
-    for (size_t i = 0; i + 1 < len; i += 2) {
-        sum += (data[i] << 8) | data[i + 1];
-    }
-    if (len & 1) {
-        sum += data[len - 1] << 8;
-    }
-    while (sum >> 16) {
-        sum = (sum & 0xFFFF) + (sum >> 16);
-    }
-    return ~sum;
-}
-
 int main() {
     try {
         UtunDevice tun;
         std::cout << "opened tunnel: " << tun.name() << "  (fd=" << tun.fd() << ")\n";
 
+        int udp = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if (udp < 0) {
+            perror("socket");
+            return 1;
+        }
+
+        sockaddr_in local{};
+        local.sin_family = AF_INET;
+        local.sin_addr.s_addr = INADDR_ANY;
+        local.sin_port = htons(9000);
+        if (::bind(udp, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0) {
+            perror("bind");
+            return 1;
+        }
+
+        sockaddr_in peer{};
+        peer.sin_family = AF_INET;
+        peer.sin_port = htons(9001);
+        ::inet_pton(AF_INET, "127.0.0.1", &peer.sin_addr);
+
+        struct pollfd fds[2];
+        fds[0].fd = tun.fd();
+        fds[0].events = POLLIN;
+        fds[1].fd = udp;
+        fds[1].events = POLLIN;
+
         uint8_t buff[2048];
-        for(;;) {
-            ssize_t n = ::read(tun.fd(), buff, sizeof(buff));
-            if (n < 0) {
-                perror("read: ");
+        for (;;) {
+            if (::poll(fds, 2, -1) < 0) {
+                perror("poll");
                 break;
             }
-            if (n < 4) {
-                continue;
+
+            if (fds[0].revents & POLLIN) {
+                ssize_t n = ::read(tun.fd(), buff, sizeof(buff));
+                if (n > 4) {
+                    ::sendto(udp, buff + 4, n - 4, 0,
+                             reinterpret_cast<sockaddr*>(&peer), sizeof(peer));
+                }
             }
 
-            uint32_t family_be;
-            std::memcpy(&family_be, buff, 4);
-            uint32_t family = ntohl(family_be);
-
-            uint8_t* pkt = buff + 4;
-            ssize_t pkt_len = n - 4;
-            std::cout << "read " << n << " bytes " << "(family=" << family << ", packet=" << pkt_len << ")";
-
-            if (family == AF_INET && pkt_len >= 20) {
-                //uint8_t version = pkt[0] >> 4;
-                size_t ihl = (pkt[0] & 0x0F) * 4;
-                uint8_t protocol = pkt[9];
-                //const uint8_t* src = pkt + 12;
-                //const uint8_t* dst = pkt + 16;
-                uint8_t* icmp = pkt + ihl;
-
-                if (protocol == 1 && pkt_len >= (ssize_t)ihl + 8 && icmp[0] == 8) {
-                    uint8_t temp[4];
-                    std::memcpy(temp, pkt + 12, 4);
-                    std::memcpy(pkt + 12, pkt + 16, 4);
-                    std::memcpy(pkt + 16, temp, 4);
-
-                    icmp[0] = 0;
-
-                    size_t icmp_len = pkt_len - ihl;
-                    icmp[2] = 0; 
-                    icmp[3] = 0;
-                    uint16_t c = internet_checksum(icmp, icmp_len);
-                    icmp[2] = c >> 8;
-                    icmp[3] = c & 0xFF;
-
-                    if (::write(tun.fd(), buff, n) < 0) { 
-                        perror("write"); 
-                    } else {
-                        std::cout << "  -> replied\n";
-                    }
-                    continue;
+            if (fds[1].revents & POLLIN) {
+                uint8_t out[2048];
+                uint32_t fam = htonl(AF_INET);
+                std::memcpy(out, &fam, 4);
+                ssize_t n = ::recvfrom(udp, out + 4, sizeof(out) - 4, 0, nullptr, nullptr);
+                if (n > 0) {
+                    ::write(tun.fd(), out, n + 4);
                 }
             }
         }
+
+        ::close(udp);
     } catch(const std::exception& e) {
         std::cerr << "error: " << e.what() << "\n";
         return 1;

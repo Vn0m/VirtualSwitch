@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/sys_domain.h>
@@ -68,10 +69,24 @@ private:
     std::string name_;
 };
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cerr << "usage: " << argv[0] << " <virtual_ip> [docker_port]\n";
+        return 1;
+    }
+    std::string vip = argv[1];
+    uint16_t port = (argc > 2) ? static_cast<uint16_t>(std::atoi(argv[2])) : 1194;
     try {
         UtunDevice tun;
-        std::cout << "opened tunnel: " << tun.name() << "  (fd=" << tun.fd() << ")\n";
+        std::cout << "opened tunnel: " << tun.name() << "\n";
+
+        std::string up = "ifconfig " + tun.name() + " " + vip + " 10.255.0.1 up";
+        std::string rt = "route -n add -net 10.0.0.0/24 10.255.0.1";
+        if (std::system(up.c_str()) != 0) {
+            std::cerr << "failed to configure " << tun.name() << "\n";
+            return 1;
+        }
+        std::system(rt.c_str());
 
         int udp = ::socket(AF_INET, SOCK_DGRAM, 0);
         if (udp < 0) {
@@ -79,18 +94,9 @@ int main() {
             return 1;
         }
 
-        sockaddr_in local{};
-        local.sin_family = AF_INET;
-        local.sin_addr.s_addr = INADDR_ANY;
-        local.sin_port = htons(9000);
-        if (::bind(udp, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0) {
-            perror("bind");
-            return 1;
-        }
-
         sockaddr_in peer{};
         peer.sin_family = AF_INET;
-        peer.sin_port = htons(9001);
+        peer.sin_port = htons(port);
         ::inet_pton(AF_INET, "127.0.0.1", &peer.sin_addr);
 
         struct pollfd fds[2];

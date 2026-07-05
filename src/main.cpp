@@ -1,16 +1,21 @@
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <string>
+#include <sodium.h>
 #include "network/tap_device.hpp"
 #include "network/udp_port.hpp"
 #include "network/stun_client.hpp"
 #include "switch/virtual_switch.hpp"
 
+using PresharedKey = std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_KEYBYTES>;
+
 struct Args {
     std::vector<std::string> taps;
     std::vector<std::string> udp_peers;
     std::string stun_server;
+    std::string key_hex;
 };
 
 struct HostPort {
@@ -30,6 +35,7 @@ void print_usage(const char* prog) {
               << "  --local <tap_name>\n"
               << "  --udp   <local_ip:local_port:remote_ip:remote_port>\n"
               << "  --stun  <host:port>\n"
+              << "  --key   <hex>  32-byte pre-shared key in hex (enables XChaCha20-Poly1305)\n"
               << "Example:\n"
               << "  " << prog << " --local tap0 --stun stun.l.google.com:19302 --udp 0.0.0.0:5000:PEER_IP:5000\n";
 }
@@ -41,6 +47,7 @@ Args parse_args(int argc, char* argv[]) {
         if      (arg == "--local" && i + 1 < argc) args.taps.push_back(argv[++i]);
         else if (arg == "--udp"   && i + 1 < argc) args.udp_peers.push_back(argv[++i]);
         else if (arg == "--stun"  && i + 1 < argc) args.stun_server = argv[++i];
+        else if (arg == "--key"   && i + 1 < argc) args.key_hex = argv[++i];
         else if (arg == "--help"  || arg == "-h")  { print_usage(argv[0]); exit(0); }
         else { std::cerr << "Unknown option: " << arg << "\n"; print_usage(argv[0]); exit(1); }
     }
@@ -74,8 +81,19 @@ void add_tap(vswitch::VirtualSwitch& sw, const std::string& name) {
     sw.add_port(std::move(tap));
 }
 
+PresharedKey parse_key(const std::string& hex) {
+    PresharedKey key;
+    size_t bin_len = 0;
+    if (sodium_hex2bin(key.data(), key.size(), hex.c_str(), hex.size(),
+                       nullptr, &bin_len, nullptr) != 0 || bin_len != key.size())
+        throw std::runtime_error("Invalid --key: expected " +
+                                 std::to_string(key.size() * 2) + " hex characters");
+    return key;
+}
+
 void add_udp_peer(vswitch::VirtualSwitch& sw, const std::string& peer_str,
-                  const std::string& stun_host, uint16_t stun_port, bool& stun_done) {
+                  const std::string& stun_host, uint16_t stun_port, bool& stun_done,
+                  const std::optional<PresharedKey>& key) {
     auto cfg = parse_udp_peer(peer_str);
     if (!stun_done && !stun_host.empty()) {
         std::cout << "Probing for stable port using STUN server " << stun_host << ":" << stun_port << "...\n";
@@ -86,7 +104,7 @@ void add_udp_peer(vswitch::VirtualSwitch& sw, const std::string& peer_str,
     
     std::string name = "udp_" + cfg.remote_ip + ":" + std::to_string(cfg.remote_port);
     auto udp = std::make_unique<vswitch::UdpPort>(name, cfg.local_ip, cfg.local_port,
-                                                        cfg.remote_ip, cfg.remote_port);
+                                                        cfg.remote_ip, cfg.remote_port, key);
     std::cout << "Created UDP port: " << udp->get_name()
               << " (local=" << cfg.local_ip << ":" << cfg.local_port
               << ", remote=" << cfg.remote_ip << ":" << cfg.remote_port << ")\n";
@@ -101,6 +119,9 @@ int main(int argc, char* argv[]) {
     std::cout << std::unitbuf;
 
     try {
+        if (sodium_init() < 0)
+            throw std::runtime_error("Failed to initialize libsodium");
+
         auto args = parse_args(argc, argv);
 
         if (args.taps.empty() && args.udp_peers.empty()) {
@@ -122,9 +143,15 @@ int main(int argc, char* argv[]) {
             stun_port = hp.port;
         }
 
+        std::optional<PresharedKey> key;
+        if (!args.key_hex.empty()) {
+            key = parse_key(args.key_hex);
+            std::cout << "Encryption enabled (XChaCha20-Poly1305)\n";
+        }
+
         bool stun_done = false;
         for (const auto& peer : args.udp_peers)
-            add_udp_peer(sw, peer, stun_host, stun_port, stun_done);
+            add_udp_peer(sw, peer, stun_host, stun_port, stun_done, key);
 
         std::cout << "\nSwitch running. Waiting for frames...\n\n";
         sw.run();

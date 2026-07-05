@@ -75,6 +75,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     std::string vip = argv[1];
+    in_addr vip_check{};
+    if (::inet_pton(AF_INET, vip.c_str(), &vip_check) != 1) {
+        std::cerr << "invalid virtual ip: " << vip << "\n";
+        return 1;
+    }
     uint16_t port = (argc > 2) ? static_cast<uint16_t>(std::atoi(argv[2])) : 1194;
     try {
         UtunDevice tun;

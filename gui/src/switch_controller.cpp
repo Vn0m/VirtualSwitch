@@ -40,7 +40,7 @@ void SwitchController::start(const QStringList& peers) {
         "-e", "TAP_IP=" + tap_ip_,
         "-e", "PEERS=" + peers.join(","),
         "-p", "5000:5000/udp",
-        "-p", "1194:1194/udp",
+        "-p", "127.0.0.1:1194:1194/udp",
         "allblue-vswitch"
     };
 

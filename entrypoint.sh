@@ -5,6 +5,7 @@ TAP_IP="${TAP_IP:-10.0.0.1}"
 PEERS="${PEERS}"
 PORT="${PORT:-5000}"
 TUNNEL_PORT="${TUNNEL_PORT:-1194}"
+KEY="${KEY:-}"
 
 if [ -z "$PEERS" ]; then
     echo "ERROR: PEERS env var required (comma separated, e.g. 1.2.3.4:5000,5.6.7.8:5000)"
@@ -14,6 +15,11 @@ fi
 ip tuntap add tap0 mode tap
 ip addr add 10.0.0.1/24 dev tap0
 ip link set tap0 up
+if [ -n "$KEY" ]; then
+    ip link set tap0 mtu 1414
+else
+    ip link set tap0 mtu 1454
+fi
 echo 1 > /proc/sys/net/ipv4/ip_forward
 echo 1 > /proc/sys/net/ipv4/conf/tap0/arp_accept
 echo 1 > /proc/sys/net/ipv4/conf/all/arp_accept
@@ -54,4 +60,9 @@ while True:
     time.sleep(5)
 PYEOF
 
-exec vswitch --local tap0 --stun stun.l.google.com:19302 $UDP_ARGS
+KEY_ARGS=""
+if [ -n "$KEY" ]; then
+    KEY_ARGS="--key $KEY"
+fi
+
+exec vswitch --local tap0 --stun stun.l.google.com:19302 $UDP_ARGS $KEY_ARGS

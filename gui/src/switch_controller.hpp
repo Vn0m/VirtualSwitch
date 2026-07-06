@@ -27,6 +27,7 @@ private:
     void onReadyRead();
     QString initTapIp();
     QString utunHelperPath() const;
+    void stopContainer();
     void launchTunnel();
     void killTunnel();
 };

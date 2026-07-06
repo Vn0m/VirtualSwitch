@@ -31,7 +31,7 @@ QString SwitchController::utunHelperPath() const {
 }
 
 void SwitchController::start(const QStringList& peers) {
-    stop();
+    stopContainer();
 
     QStringList args = {
         "run", "--rm", "--name", "allblue-node",
@@ -62,21 +62,30 @@ void SwitchController::launchTunnel() {
     }
 
     QString log = QDir::homePath() + "/Library/Logs/allblue-utun.log";
-    QString shell = "'" + helper + "' " + tap_ip_ + " >> '" + log + "' 2>&1 &";
+    QString shell = "pkill -x allblue-utun; sleep 0.3; "
+                    "'" + helper + "' " + tap_ip_ + " >> '" + log + "' 2>&1 &";
     QString script = "do shell script \"" + shell + "\" with administrator privileges";
     QProcess::startDetached("osascript", {"-e", script});
 }
 
 void SwitchController::killTunnel() {
-    QString script = "do shell script \"pkill -f allblue-utun\" with administrator privileges";
+    QString script = "do shell script \"pkill -x allblue-utun\" with administrator privileges";
     QProcess::startDetached("osascript", {"-e", script});
 }
 
+void SwitchController::stopContainer() {
+    if (process_->state() == QProcess::NotRunning) {
+        return;
+    }
+    QProcess::startDetached("docker", {"stop", "allblue-node"});
+    process_->terminate();
+    process_->waitForFinished(3000);
+}
+
 void SwitchController::stop() {
-    if (process_->state() != QProcess::NotRunning) {
-        QProcess::startDetached("docker", {"stop", "allblue-node"});
-        process_->terminate();
-        process_->waitForFinished(3000);
+    bool wasRunning = process_->state() != QProcess::NotRunning;
+    stopContainer();
+    if (wasRunning) {
         killTunnel();
     }
 }

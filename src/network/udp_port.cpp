@@ -42,6 +42,8 @@ UdpPort::UdpPort(const std::string& name,
         ::close(fd_);
         throw std::runtime_error("Invalid remote IP: " + remote_ip);
     }
+
+    punch(5);
 }
 
 UdpPort::~UdpPort() {

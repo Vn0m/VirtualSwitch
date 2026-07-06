@@ -86,11 +86,13 @@ int main(int argc, char* argv[]) {
         std::cout << "opened tunnel: " << tun.name() << "\n";
 
         std::string up = "ifconfig " + tun.name() + " " + vip + " 10.255.0.1 up";
+        std::string del_rt = "route -n delete -net 10.0.0.0/24 2>/dev/null; true";
         std::string rt = "route -n add -net 10.0.0.0/24 10.255.0.1";
         if (std::system(up.c_str()) != 0) {
             std::cerr << "failed to configure " << tun.name() << "\n";
             return 1;
         }
+        std::system(del_rt.c_str());
         std::system(rt.c_str());
 
         int udp = ::socket(AF_INET, SOCK_DGRAM, 0);

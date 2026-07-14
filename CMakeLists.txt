@@ -6,6 +6,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+option(ENABLE_ASAN "Build with Address + UB sanitizers" OFF)
+if(ENABLE_ASAN)
+    message(STATUS "AddressSanitizer + UBSan enabled")
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 if(UNIX AND NOT APPLE)

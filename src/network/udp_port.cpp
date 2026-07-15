@@ -42,6 +42,8 @@ UdpPort::UdpPort(const std::string& name,
         ::close(fd_);
         throw std::runtime_error("Invalid remote IP: " + remote_ip);
     }
+
+    punch(5);
 }
 
 UdpPort::~UdpPort() {
@@ -65,7 +67,8 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
 
     if (src_addr.sin_addr.s_addr != remote_addr_.sin_addr.s_addr) {
         return 0;
-    } else if (src_addr.sin_port != remote_addr_.sin_port) {
+    }
+    if (!key_ && src_addr.sin_port != remote_addr_.sin_port) {
         remote_addr_.sin_port = src_addr.sin_port;
     }
 
@@ -77,17 +80,11 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
     std::memcpy(&net_len, packet.data(), sizeof(uint32_t));
     uint32_t frame_len = ntohl(net_len);
 
-    if (frame_len == 0 || frame_len > size) {
+    if (frame_len == 0 || bytes < static_cast<ssize_t>(sizeof(uint32_t) + frame_len)) {
         return 0;
     }
 
     if (key_) {
-        if (bytes < static_cast<ssize_t>(sizeof(uint32_t)
-                + crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
-                + crypto_aead_xchacha20poly1305_ietf_ABYTES)) {
-            return 0;
-        }
-
         if (frame_len < crypto_aead_xchacha20poly1305_ietf_NPUBBYTES
                 + crypto_aead_xchacha20poly1305_ietf_ABYTES) {
             return 0;
@@ -96,12 +93,17 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
         std::array<uint8_t, crypto_aead_xchacha20poly1305_ietf_NPUBBYTES> nonce{};
         std::array<uint8_t, 1518> decrypted{};
         unsigned long long decrypted_len = 0;
-        
+
         std::memcpy(nonce.data(), packet.data() + sizeof(uint32_t), nonce.size());
 
         uint8_t *ciphertext = packet.data() + sizeof(uint32_t) + nonce.size();
         size_t ciphertext_len = frame_len - nonce.size();
-        
+
+        size_t plaintext_len = ciphertext_len - crypto_aead_xchacha20poly1305_ietf_ABYTES;
+        if (plaintext_len > decrypted.size() || plaintext_len > size) {
+            return 0;
+        }
+
         if (crypto_aead_xchacha20poly1305_ietf_decrypt(
                 decrypted.data(), &decrypted_len, nullptr,
                 ciphertext, ciphertext_len,
@@ -110,11 +112,13 @@ ssize_t UdpPort::read(uint8_t* buffer, size_t size) {
             return 0;
         }
 
+        remote_addr_.sin_port = src_addr.sin_port;
+
         std::memcpy(buffer, decrypted.data(), decrypted_len);
         return static_cast<ssize_t>(decrypted_len);
     }
 
-    if (bytes < static_cast<ssize_t>(sizeof(uint32_t) + frame_len)) {
+    if (frame_len > size) {
         return 0;
     }
 

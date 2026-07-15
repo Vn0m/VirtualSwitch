@@ -8,8 +8,6 @@
 #include <QClipboard>
 #include <QRegularExpression>
 #include <QPixmap>
-#include <QDesktopServices>
-#include <QUrl>
 
 static QFrame* make_separator(QWidget* parent) {
     auto* sep = new QFrame(parent);
@@ -32,11 +30,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     connect(controller_, &SwitchController::outputReceived, this, [this](const QString& line) {
         for (auto* log : peer_logs_)
             log->append(line);
-    });
-
-    connect(controller_, &SwitchController::ovpnConfigReady, this, [this](const QString& path) {
-        tunnelblick_btn_->setVisible(true);
-        tunnelblick_btn_->setProperty("ovpnPath", path);
     });
 
     auto* central = new QWidget(this);
@@ -88,30 +81,14 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     tap_address_ = new QLabel(controller_->tapIp(), this);
     tap_address_->setStyleSheet("font-family: monospace; font-size: 17px; font-weight: 500;");
 
-#if defined(Q_OS_MAC)
-    const QString vpn_client = "Tunnelblick";
-    const QString tap_hint_text = "virtual address · connect via Tunnelblick to use on this Mac";
-#elif defined(Q_OS_WIN)
-    const QString vpn_client = "OpenVPN Connect";
-    const QString tap_hint_text = "virtual address · connect via OpenVPN Connect to use on this PC";
-#else
-    const QString vpn_client = "OpenVPN";
-    const QString tap_hint_text = "virtual address · connect via OpenVPN to use on this machine";
-#endif
-
-    tunnelblick_btn_ = new QPushButton("Open in " + vpn_client, this);
-    tunnelblick_btn_->setStyleSheet("font-size: 12px;");
-    tunnelblick_btn_->setVisible(false);
-
     auto* tap_row = new QHBoxLayout();
     tap_row->setSpacing(10);
     tap_row->addWidget(tap_address_);
     tap_row->addStretch();
-    tap_row->addWidget(tunnelblick_btn_);
     root->addLayout(tap_row);
     root->addSpacing(4);
 
-    auto* tap_hint = new oclero::qlementine::Label(tap_hint_text, this);
+    auto* tap_hint = new oclero::qlementine::Label("virtual address · your IP on the network", this);
     tap_hint->setRole(oclero::qlementine::TextRole::Caption);
     tap_hint->setStyleSheet("font-size: 13px;");
     root->addWidget(tap_hint);
@@ -262,11 +239,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 
     connect(copy_btn_, &QPushButton::clicked, this, [this]() {
         QApplication::clipboard()->setText(own_address_->text());
-    });
-
-    connect(tunnelblick_btn_, &QPushButton::clicked, this, [this]() {
-        const QString path = tunnelblick_btn_->property("ovpnPath").toString();
-        QDesktopServices::openUrl(QUrl::fromLocalFile(path));
     });
 }
 

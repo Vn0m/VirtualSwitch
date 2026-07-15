@@ -41,7 +41,9 @@ target_link_libraries(allblue PRIVATE Qt6::Core Qt6::Widgets qlementine)
 if(APPLE)
     add_executable(allblue-utun src/utun.cpp)
     add_dependencies(allblue allblue-utun)
-    add_custom_command(TARGET allblue POST_BUILD
+    add_custom_command(TARGET allblue-utun POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            $<TARGET_BUNDLE_CONTENT_DIR:allblue>/MacOS
         COMMAND ${CMAKE_COMMAND} -E copy
             $<TARGET_FILE:allblue-utun>
             $<TARGET_BUNDLE_CONTENT_DIR:allblue>/MacOS/allblue-utun)

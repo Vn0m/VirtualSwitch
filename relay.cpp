@@ -80,7 +80,9 @@ int main(int argc, char* argv[]) {
                                        reinterpret_cast<sockaddr*>(&mac), &mac_len);
                 if (n > 0) {
                     have_mac = true;
-                    ::write(tun, buff, n);
+                    if (n >= 20) {
+                        ::write(tun, buff, n);
+                    }
                 }
             }
         }

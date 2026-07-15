@@ -112,11 +112,21 @@ int main(int argc, char* argv[]) {
         fds[1].fd = udp;
         fds[1].events = POLLIN;
 
+        const uint8_t hello[4] = {0, 0, 0, 0};
+        ::sendto(udp, hello, sizeof(hello), 0,
+                 reinterpret_cast<sockaddr*>(&peer), sizeof(peer));
+
         uint8_t buff[2048];
         for (;;) {
-            if (::poll(fds, 2, -1) < 0) {
+            int ready = ::poll(fds, 2, 5000);
+            if (ready < 0) {
                 perror("poll");
                 break;
+            }
+            if (ready == 0) {
+                ::sendto(udp, hello, sizeof(hello), 0,
+                         reinterpret_cast<sockaddr*>(&peer), sizeof(peer));
+                continue;
             }
 
             if (fds[0].revents & POLLIN) {

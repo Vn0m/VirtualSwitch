@@ -25,7 +25,7 @@ Play Terraria, Minecraft, Valheim, or any LAN game with friends across the inter
 
 Two Macs on different networks, playing Terraria over a direct peer-to-peer link:
 
-https://github.com/user-attachments/assets/f8aa9219-1abc-42eb-b71a-9ceac982ec45
+https://github.com/user-attachments/assets/8a009657-f06e-4020-901b-2721e8aa4ee5
 
 Two ways to use it:
 

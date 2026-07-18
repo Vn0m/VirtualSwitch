@@ -21,6 +21,12 @@
 
 Play Terraria, Minecraft, Valheim, or any LAN game with friends across the internet without subscriptions or port forwarding. AllBlue makes your computers appear on the same local network.
 
+## Demo
+
+Two Macs on different networks, playing Terraria over a direct peer-to-peer link:
+
+https://github.com/user-attachments/assets/f8aa9219-1abc-42eb-b71a-9ceac982ec45
+
 Two ways to use it:
 
 - **macOS — AllBlue app**: a Qt GUI that runs the switch in a Docker container and bridges your Mac into the virtual network through a native `utun` interface.
